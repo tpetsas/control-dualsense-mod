@@ -152,19 +152,40 @@ namespace DualsenseMod {
 
     // Read and populate offsets and addresses from game code
     bool PopulateOffsets() {
-        g_WeaponEntry_GIDEntity_Offset = *reinterpret_cast<uint32_t*>(Addr_Entry_GIDEntity_and_ModelHandle_GameInventoryComponentState_Offset.GetUIntPtr() + 3);
-        g_ModelHandle_GameInventoryComponentState_Offset = *reinterpret_cast<uint32_t*>(Addr_Entry_GIDEntity_and_ModelHandle_GameInventoryComponentState_Offset.GetUIntPtr() + 13);
-        g_WeaponEntrySize = *reinterpret_cast<uint32_t*>(Addr_WeaponEntrySize.GetUIntPtr() + 3);
-        g_GameInventoryComponentState_EquippedWeaponOffset = *reinterpret_cast<uint32_t*>(Addr_GameInventoryComponentState_EquippedWeaponOffset.GetUIntPtr() + 3);
+        g_WeaponEntry_GIDEntity_Offset = *reinterpret_cast<uint32_t *> (
+            Addr_Entry_GIDEntity_and_ModelHandle_GameInventoryComponentState_Offset.GetUIntPtr() + 3
+        );
+        g_ModelHandle_GameInventoryComponentState_Offset = *reinterpret_cast<uint32_t *> (
+            Addr_Entry_GIDEntity_and_ModelHandle_GameInventoryComponentState_Offset.GetUIntPtr() + 13
+        );
+        g_WeaponEntrySize = *reinterpret_cast<uint32_t *> (
+            Addr_WeaponEntrySize.GetUIntPtr() + 3
+        );
+        g_GameInventoryComponentState_EquippedWeaponOffset = *reinterpret_cast<uint32_t *> (
+            Addr_GameInventoryComponentState_EquippedWeaponOffset.GetUIntPtr() + 3
+        );
 
         HMODULE hMod = GetModuleHandleA("coherentuigt.dll");
-        ModelHandle_GetPropertyHandle = (_ModelHandle_GetPropertyHandle)GetProcAddress(hMod, "?GetPropertyHandle@ModelHandle@UIGT@Coherent@@QEBA?AUPropertyHandle@23@PEBD@Z");
+        ModelHandle_GetPropertyHandle =
+            (_ModelHandle_GetPropertyHandle) GetProcAddress (
+                hMod,
+                "?GetPropertyHandle@ModelHandle@UIGT@Coherent@@QEBA?AUPropertyHandle@23@PEBD@Z"
+            );
 
-        _LOG("Offsets: %X, %X, %X, %X", g_WeaponEntry_GIDEntity_Offset, g_ModelHandle_GameInventoryComponentState_Offset, g_WeaponEntrySize, g_GameInventoryComponentState_EquippedWeaponOffset);
-        _LOG("OnGameEvent_Internal at %p", OnGameEvent_Internal.GetUIntPtr());
-        _LOG("ModelHandle_GetPropertyHandle at %p", ModelHandle_GetPropertyHandle);
+        _LOG("Offsets: %X, %X, %X, %X",
+            g_WeaponEntry_GIDEntity_Offset,
+            g_ModelHandle_GameInventoryComponentState_Offset,
+            g_WeaponEntrySize, g_GameInventoryComponentState_EquippedWeaponOffset
+        );
+        _LOG("OnGameEvent_Internal at %p",
+            OnGameEvent_Internal.GetUIntPtr()
+        );
+        _LOG("ModelHandle_GetPropertyHandle at %p",
+            ModelHandle_GetPropertyHandle
+        );
 
-        if (!ModelHandle_GetPropertyHandle) return false;
+        if (!ModelHandle_GetPropertyHandle)
+            return false;
 
         return true;
     }
@@ -257,17 +278,27 @@ namespace DualsenseMod {
         _LOG("Applying hooks...");
         // Hook loadout type registration to obtain pointer to the model handle
         MH_Initialize();
-        MH_CreateHook(Loadout_TypeRegistration_Internal, Loadout_TypeRegistration_Hook, reinterpret_cast<LPVOID*>(&Loadout_TypeRegistration_Original));
+        MH_CreateHook (
+            Loadout_TypeRegistration_Internal,
+            Loadout_TypeRegistration_Hook,
+            reinterpret_cast<LPVOID *>(&Loadout_TypeRegistration_Original)
+        );
         if (MH_EnableHook(Loadout_TypeRegistration_Internal) != MH_OK) {
             _LOG("FATAL: Failed to install hook.");
             return false;
         }
-        MH_CreateHook(OnGameEvent_Internal, OnGameEvent_Hook, reinterpret_cast<LPVOID*>(&OnGameEvent_Original));
+        // Hook an internal function that called on various game events to
+        // configure Dualsense adaptive triggers when switching weapons
+        MH_CreateHook (
+            OnGameEvent_Internal,
+            OnGameEvent_Hook,
+            reinterpret_cast<LPVOID *>(&OnGameEvent_Original)
+        );
         if (MH_EnableHook(OnGameEvent_Internal) != MH_OK) {
             _LOG("FATAL: Failed to install OnGameEvent_Internal hook.");
             return false;
         }
-        _LOG("Hooks applied.");
+        _LOG("Hooks applied successfully!");
         return true;
     }
 
@@ -275,35 +306,30 @@ namespace DualsenseMod {
         _LOG("Sigscan start");
         RVAUtils::Timer tmr; tmr.start();
         RVAManager::UpdateAddresses(0);
-
         _LOG("Sigscan elapsed: %llu ms.", tmr.stop());
 
         // Check if all addresses were resolved
         for (auto rvaData : RVAManager::GetAllRVAs()) {
             if (!rvaData->effectiveAddress) {
-                _LOG("Not resolved: %s", rvaData->sig);
+                _LOG("Signature: %s was not resolved!", rvaData->sig);
             }
         }
-        if (!RVAManager::IsAllResolved()) return false;
+        if (!RVAManager::IsAllResolved())
+            return false;
 
         return true;
     }
 
 
-    DWORD WINAPI sendHearbeatToDSX(LPVOID lpParam)
-    {
-        int numAttempts = 10;
-        while (numAttempts--) {
-            _LOG("Waiting to get main Control's window...");
-            Sleep(2000); // wait for the window to appear
-            HWND hwnd = Utils::FindOwnWindow();
-            if (hwnd) {
-                _LOG("Found Control's window.");
-                return 0;
-            }
-        }
-        _LOG("FATAL: Failed to find Control's window.");
-        MessageBoxA(NULL, "Failed to find Control", "Warning", MB_OK | MB_ICONEXCLAMATION);
+    DWORD WINAPI sendHearbeatToDSX(LPVOID lpParam) {
+        // TODO
+        _LOG("FATAL: Failed to find DSX Server.");
+        MessageBoxA (
+            NULL,
+            "Failed to find DSX Server",
+            "Warning",
+            MB_OK | MB_ICONEXCLAMATION
+        );
         return 0;
     };
 
@@ -311,7 +337,9 @@ namespace DualsenseMod {
     void Init() {
 #if 0
         char logPath[MAX_PATH];
-        if (SUCCEEDED(SHGetFolderPathA(NULL, CSIDL_LOCAL_APPDATA, NULL, NULL, logPath))) {
+        if (SUCCEEDED (
+                SHGetFolderPathA(NULL, CSIDL_LOCAL_APPDATA, NULL, NULL, logPath)
+            )) {
             strcat_s(logPath, "\\Remedy\\Control\\WeaponSwitch.log");
             g_logger.Open(logPath);
         }
@@ -323,15 +351,21 @@ namespace DualsenseMod {
 
         // Sigscan
         if (!InitAddresses() || !PopulateOffsets()) {
-            MessageBoxA(NULL, "DualsenseMod is not compatible with this version of Control.\nPlease visit the mod page for updates.", "DualsenseMod", MB_OK | MB_ICONEXCLAMATION);
+            MessageBoxA (
+                NULL,
+                "DualsenseMod is not compatible with this version of Control.\nPlease visit the mod page for updates.",
+                "DualsenseMod",
+                MB_OK | MB_ICONEXCLAMATION
+            );
             _LOG("FATAL: Incompatible version");
             return;
         }
         _LOG("Addresses set");
 
         Hook();
-        
-        CreateThread(NULL, 0, sendHearbeatToDSX, NULL, 0, NULL);
+
+        // TODO
+        //CreateThread(NULL, 0, sendHearbeatToDSX, NULL, 0, NULL);
 
         _LOG("Ready.");
     }
