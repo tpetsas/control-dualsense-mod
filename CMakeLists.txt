@@ -18,3 +18,22 @@ add_library(dualsense-mod SHARED
     src/minhook/src/hde/hde64.c
     src/rva/sscan/Pattern.cpp
 )
+
+set(DSXPP_SRC "${CMAKE_CURRENT_LIST_DIR}/src/DSXpp/src")
+
+if (NOT EXISTS "${DSXPP_SRC}/UDPClient.cpp" OR
+    NOT EXISTS "${DSXPP_SRC}/DSX++.cpp"
+)
+    message(FATAL_ERROR,
+            "Error: DSX++ source code not found"
+            "make sure to init submodules first through:"
+            "git submodule update --init --recursive"
+    )
+endif()
+
+add_library(DSX++ STATIC
+    ${DSXPP_SRC}/UDPClient.cpp
+    ${DSXPP_SRC}/DSX++.cpp
+)
+
+target_link_libraries(dualsense-mod PRIVATE DSX++)
