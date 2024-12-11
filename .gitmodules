@@ -1,0 +1,3 @@
+[submodule "src/DSXpp"]
+	path = src/DSXpp
+	url = https://github.com/tpetsas/DSXpp.git
