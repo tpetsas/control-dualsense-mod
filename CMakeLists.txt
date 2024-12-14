@@ -1,9 +1,24 @@
 cmake_minimum_required(VERSION 3.10)
+set(CMAKE_CXX_STANDARD 20)
 
 project(control-dualsense-mod)
 
 # Set the DLL output directory
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+
+set(DSXPP_SRC "${CMAKE_CURRENT_LIST_DIR}/src/DSXpp/src")
+
+if (NOT EXISTS "${DSXPP_SRC}/UDPClient.cpp" OR
+    NOT EXISTS "${DSXPP_SRC}/DSX++.cpp"
+)
+    message(FATAL_ERROR,
+            "Error: DSX++ source code not found"
+            "make sure to init submodules first through:"
+            "git submodule update --init --recursive"
+    )
+endif()
+
+include_directories(${DSXPP_SRC})
 
 # Add the source files, including dllmain.cpp
 add_library(dualsense-mod SHARED
@@ -18,18 +33,6 @@ add_library(dualsense-mod SHARED
     src/minhook/src/hde/hde64.c
     src/rva/sscan/Pattern.cpp
 )
-
-set(DSXPP_SRC "${CMAKE_CURRENT_LIST_DIR}/src/DSXpp/src")
-
-if (NOT EXISTS "${DSXPP_SRC}/UDPClient.cpp" OR
-    NOT EXISTS "${DSXPP_SRC}/DSX++.cpp"
-)
-    message(FATAL_ERROR,
-            "Error: DSX++ source code not found"
-            "make sure to init submodules first through:"
-            "git submodule update --init --recursive"
-    )
-endif()
 
 add_library(DSX++ STATIC
     ${DSXPP_SRC}/UDPClient.cpp

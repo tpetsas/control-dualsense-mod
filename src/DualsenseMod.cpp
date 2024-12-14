@@ -5,6 +5,8 @@
 #include "rva/RVA.h"
 #include "minhook/include/MinHook.h"
 
+#include "DSX++.h"
+
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <shlobj.h>
@@ -16,6 +18,22 @@
 #include <sstream>
 
 #define INI_LOCATION "./plugins/DualsenseMod.ini"
+
+struct TriggerSetting {
+    TriggerMode mode;
+    bool isCustomTrigger = false;
+    CustomTriggerValueMode customMode = OFF;
+    std::vector<int> extras;
+
+    TriggerSetting(TriggerMode mode, std::vector<int> extras) :
+        mode(mode), extras(extras) {}
+
+};
+
+struct Triggers {
+    TriggerSetting L2;
+    TriggerSetting R2;
+};
 
 // Globals
 Logger g_logger;
@@ -36,6 +54,40 @@ std::vector<std::string> g_WeaponListINI = {
     "Charge",
     "Surge"
 };
+
+std::map<std::string, Triggers> g_TriggerSettings ;
+
+void InitTriggerSettings() {
+    g_TriggerSettings =
+    {
+        {
+            "WEAPON_PISTOL_DEFAULT",
+            {
+                .L2 = TriggerSetting(Choppy, {}),
+                .R2 = TriggerSetting(Soft, {}),
+            }
+        },
+        {
+            "WEAPON_SHOTGUN_SINGLESHOT",
+            {
+                .L2 = TriggerSetting(Rigid, {}),
+                .R2 = TriggerSetting(Medium, {})
+            }
+        },
+    };
+}
+#if 0
+void SendTriggers(std::string weaponType) {
+    Triggers t = g_TriggerSettings[weaponType];
+    DSX::setLeftTrigger (t.L2.mode, t.L2.extras);
+    DSX::setRightTrigger (t.R2.mode, t.R2.extras);
+    if (DSX::sendPayload() != DSX::Success) {
+        _LOG("DSX++ client failed to send data!");
+        return;
+    }
+    _LOG("Addaptive Trigger settings sent successfully!");
+}
+#endif
 
 // Game functions
 using _OnGameEvent_Internal =
@@ -360,12 +412,19 @@ namespace DualsenseMod {
             _LOG("FATAL: Incompatible version");
             return;
         }
+
         _LOG("Addresses set");
 
         Hook();
 
         // TODO
         //CreateThread(NULL, 0, sendHearbeatToDSX, NULL, 0, NULL);
+
+        if ( DSX::init() != DSX::Success ) {
+            _LOG("DSX++ client failed to initialize!");
+            return;
+        }
+        _LOG("DSX++ client initialized successfully!");
 
         _LOG("Ready.");
     }
