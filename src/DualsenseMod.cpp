@@ -186,7 +186,7 @@ _Loadout_TypeRegistration Loadout_TypeRegistration_Original = nullptr;
 // like the weapon switching one
 RVA<_OnGameEvent_Internal>
 OnGameEvent_Internal (
-    "4c 8b dc 57 48 81 ec a0 00 00 00 48 c7 44 24 20 fe ff ff ff 49 89 5b 18 48 8b 05"
+    "4c 8b dc 57 48 81 ec a0 ? ? ? 48 c7 44 24 20 fe ? ? ? 49 89 5b 18 48 8b 05"
 );
 _OnGameEvent_Internal OnGameEvent_Original = nullptr;
 
