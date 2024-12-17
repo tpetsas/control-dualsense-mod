@@ -16,6 +16,9 @@
 #include <algorithm>
 #include <string>
 #include <sstream>
+#include <thread>
+#include <chrono>
+#include <mutex>
 
 #define INI_LOCATION "./plugins/DualsenseMod.ini"
 
@@ -31,8 +34,8 @@ struct TriggerSetting {
 };
 
 struct Triggers {
-    TriggerSetting L2;
-    TriggerSetting R2;
+    TriggerSetting *L2;
+    TriggerSetting *R2;
 };
 
 // Globals
@@ -63,31 +66,41 @@ void InitTriggerSettings() {
         {
             "WEAPON_PISTOL_DEFAULT",
             {
-                .L2 = TriggerSetting(Choppy, {}),
-                .R2 = TriggerSetting(Soft, {}),
+                .L2 = new TriggerSetting(GameCube, {}),
+                .R2 = new TriggerSetting(Soft, {}),
             }
         },
         {
             "WEAPON_SHOTGUN_SINGLESHOT",
             {
-                .L2 = TriggerSetting(Rigid, {}),
-                .R2 = TriggerSetting(Medium, {})
+                .L2 = new TriggerSetting(Choppy, {}),
+                .R2 = new TriggerSetting(Medium, {})
+            }
+        },
+        {
+            "WEAPON_RAILGUN_STANDARD",
+            {
+                .L2 = new TriggerSetting(Rigid, {}),
+                .R2 = new TriggerSetting(Hardest, {})
             }
         },
     };
 }
-#if 0
+
 void SendTriggers(std::string weaponType) {
     Triggers t = g_TriggerSettings[weaponType];
-    DSX::setLeftTrigger (t.L2.mode, t.L2.extras);
-    DSX::setRightTrigger (t.R2.mode, t.R2.extras);
+    DSX::setLeftTrigger (t.L2->mode, t.L2->extras);
+    DSX::setRightTrigger (t.R2->mode, t.R2->extras);
     if (DSX::sendPayload() != DSX::Success) {
         _LOG("DSX++ client failed to send data!");
         return;
     }
     _LOG("Addaptive Trigger settings sent successfully!");
 }
-#endif
+
+// Game global vars
+
+static DWORD mainThread = -1;
 
 // Game functions
 using _OnGameEvent_Internal =
@@ -96,6 +109,12 @@ using _Loadout_TypeRegistration =
                     void(*)(void* a1, void* loadoutModelObject);
 using _AppEventHandler =
                     bool(*)(void* EventHandler_self, void* evt);
+using _InputManager_IsMenuOn =
+                    bool(*)(void* inputManager);
+using _InputManager_IsLoadingOn =
+                    bool(*)(void* inputManager);
+using _InputManager_IsGameOn =
+                    bool(*)(void* inputManager);
 
 struct ModelHandle {
     void* unk00[2];        // 00
@@ -170,6 +189,12 @@ Addr_GameInventoryComponentState_EquippedWeaponOffset (
     "48 8B 89 ? ? ? ? 48 39 08 74 0C"
 );
 
+// savegame call inside OnWeaponEquipped
+RVA<uintptr_t>
+OnWeaponEquipped_SaveGame_Addr (
+    "33 D2 45 33 C0 8D 4A 02 FF 15 ? ? ? ? 4C 8D 05 ? ? ? ?", 8
+);
+
 // From coherentuigt, to retrieve a property handle from a model handle by name
 _ModelHandle_GetPropertyHandle ModelHandle_GetPropertyHandle = nullptr;
 
@@ -186,10 +211,20 @@ _Loadout_TypeRegistration Loadout_TypeRegistration_Original = nullptr;
 // like the weapon switching one
 RVA<_OnGameEvent_Internal>
 OnGameEvent_Internal (
-    "4c 8b dc 57 48 81 ec a0 ? ? ? 48 c7 44 24 20 fe ? ? ? 49 89 5b 18 48 8b 05"
+    //"4c 8b dc 57 48 81 ec a0 ? ? ? 48 c7 44 24 20 fe ? ? ? 49 89 5b 18 48 8b 05"
+    "4c 8b dc 57 48 81 ec a0 00 00 00 48 c7 44 24 20 fe ff ff ff 49 89 5b 18 48 8b 05"
 );
 _OnGameEvent_Internal OnGameEvent_Original = nullptr;
-
+// from input - InputManager is created quite early, before startvideos.tex
+// plays
+void** InputManager_ppInstance = nullptr;
+// from input, to determine whether a menu
+// (e.g. inventory / conversation / fast travel) is active
+_InputManager_IsMenuOn InputManager_IsMenuOn = nullptr;
+// to skip equip weapon events when we are on a loading screen
+_InputManager_IsLoadingOn InputManager_IsLoadingOn = nullptr;
+// to skip equip weapon events when we are on a non-game screen
+_InputManager_IsGameOn InputManager_IsGameOn = nullptr;
 
 // Offsets / Struct Sizes
 int g_WeaponEntrySize = 0;
@@ -199,6 +234,22 @@ int g_GameInventoryComponentState_EquippedWeaponOffset = 0;
 
 // Globals
 ModelHandle* g_loadoutModelHandle = nullptr;
+
+HMODULE GetRMDModule(const char* modName) {
+    char szModuleName[MAX_PATH] = "";
+    snprintf(szModuleName, sizeof(szModuleName), "%s_rmdwin7_f.dll", modName);
+    HMODULE hMod = GetModuleHandleA(szModuleName);
+
+    if (!hMod) {
+        snprintf(szModuleName, sizeof(szModuleName), "%s_rmdwin10_f.dll", modName);
+        hMod = GetModuleHandleA(szModuleName);
+    }
+
+    if (!hMod) {
+        _LOG("WARNING: Could not get module: %s.", modName);
+    }
+    return hMod;
+}
 
 namespace DualsenseMod {
 
@@ -224,6 +275,12 @@ namespace DualsenseMod {
                 "?GetPropertyHandle@ModelHandle@UIGT@Coherent@@QEBA?AUPropertyHandle@23@PEBD@Z"
             );
 
+        HMODULE hInput = GetRMDModule("input");
+        InputManager_ppInstance = (void**)GetProcAddress(hInput, "?sm_pInstance@InputManager@input@@0PEAV12@EA");
+        InputManager_IsMenuOn = (_InputManager_IsMenuOn)GetProcAddress(hInput, "?isMenuOn@InputManager@input@@QEAA_NXZ");
+        InputManager_IsLoadingOn = (_InputManager_IsMenuOn)GetProcAddress(hInput, "?isLoadingOn@InputManager@input@@QEAA_NXZ");
+        InputManager_IsGameOn = (_InputManager_IsGameOn)GetProcAddress(hInput, "?isGameOn@InputManager@input@@QEAA_NXZ");
+
         _LOG("Offsets: %X, %X, %X, %X",
             g_WeaponEntry_GIDEntity_Offset,
             g_ModelHandle_GameInventoryComponentState_Offset,
@@ -235,8 +292,20 @@ namespace DualsenseMod {
         _LOG("ModelHandle_GetPropertyHandle at %p",
             ModelHandle_GetPropertyHandle
         );
+        _LOG("InputManager_pInstance at %p",
+                InputManager_ppInstance
+        );
+        _LOG("InputManager_IsMenuOn at %p",
+                InputManager_IsMenuOn
+        );
+        _LOG("InputManager_IsLoadingOn at %p",
+                InputManager_IsLoadingOn
+        );
+        _LOG("InputManager_IsGameOn at %p",
+                InputManager_IsGameOn
+        );
 
-        if (!ModelHandle_GetPropertyHandle)
+        if (!ModelHandle_GetPropertyHandle || !InputManager_ppInstance || !InputManager_IsMenuOn || !InputManager_IsLoadingOn || !InputManager_IsGameOn)
             return false;
 
         return true;
@@ -247,20 +316,13 @@ namespace DualsenseMod {
             g_loadoutModelHandle =
                     (ModelHandle *) ((char *)loadoutModelObject - 0x18);
             _LOG("g_loadoutModelHandle: %p", g_loadoutModelHandle);
-        }
-        Loadout_TypeRegistration_Original(arg1, loadoutModelObject);
-    }
 
-    inline uint64_t getCurrentlyEquippedWeaponId() {
-        void *gameInventoryComponentState = Utils::GetOffset<void *> (
-            g_loadoutModelHandle,
-            g_ModelHandle_GameInventoryComponentState_Offset
-        );
-        uint64_t equippedWeaponId = Utils::GetOffset<uint64_t> (
-            gameInventoryComponentState,
-            g_GameInventoryComponentState_EquippedWeaponOffset
-        );
-        return equippedWeaponId;
+            DWORD threadId = GetCurrentThreadId();
+            _LOG("Main thread id: %d", threadId);
+            mainThread = threadId;
+        }
+
+        Loadout_TypeRegistration_Original(arg1, loadoutModelObject);
     }
 
     void* getModelProperty(const char* propertyName) {
@@ -292,7 +354,7 @@ namespace DualsenseMod {
         InPlaceVector *vecWeapons =
             (InPlaceVector *) getModelProperty("m_vecEquippedWeapons");
         if (!vecWeapons)
-            return NULL;
+            return nullptr;
         void* weaponItem = vecWeapons->items;
         for (unsigned int i = 0; i < vecWeapons->size; i++) {
             uint64_t weaponId = Utils::GetOffset<uint64_t> (
@@ -307,26 +369,71 @@ namespace DualsenseMod {
             }
             weaponItem = (char *) weaponItem + g_WeaponEntrySize;
         }
-        return NULL;
+        return nullptr;
     }
 
+    inline uint64_t getCurrentlyEquippedWeaponId() {
+        void *gameInventoryComponentState = Utils::GetOffset<void *> (
+            g_loadoutModelHandle,
+            g_ModelHandle_GameInventoryComponentState_Offset
+        );
+        uint64_t equippedWeaponId = Utils::GetOffset<uint64_t> (
+            gameInventoryComponentState,
+            g_GameInventoryComponentState_EquippedWeaponOffset
+        );
+        return equippedWeaponId;
+    }
+
+    //std::mutex g_mutex;
+
+    std::string g_currentWeaponName;
     void OnGameEvent_Hook(void* entityComponentState, char *event_message) {
         OnGameEvent_Original(entityComponentState, event_message);
-        if (strcmp(event_message, "weapon_equipped"))
+        //const std::lock_guard<std::mutex> lock(g_mutex);
+        bool isMenuOn = InputManager_IsMenuOn(*InputManager_ppInstance);
+        if (isMenuOn) {
+            _LOG("We are on a menu screen, just skipping...");
             return;
-        _LOG("in OnGameEvent hook! - event message: \"%s\"", event_message);
-
+        }
+        bool isLoadingOn = InputManager_IsLoadingOn(*InputManager_ppInstance);
+        if (isLoadingOn) {
+            _LOG("We are on a loading screen, just skipping...");
+            return;
+        }
+        bool isGameOn = InputManager_IsGameOn(*InputManager_ppInstance);
+        if (!isGameOn) {
+            _LOG("We are NOT on a Game screen, just skipping...");
+            return;
+        }
+        if (event_message == nullptr) {
+            _LOG("event message is null!");
+            return;
+        }
+        //_LOG("in OnGameEvent hook! - event message: \"%s\"", event_message);
+        if (strcmp(event_message, "weapon_equipped")) {
+            return;
+        }
         if (!g_loadoutModelHandle) {
             _LOG("loadout not set yet, skipping...");
             return;
         }
         uint64_t weaponId = getCurrentlyEquippedWeaponId();
+        if (weaponId == 0) {
+            _LOG("* current weapon Id was zero; skipping...");
+            return;
+        }
         const char* weaponName = getWeaponName(weaponId);
+        if (weaponName == nullptr) {
+            _LOG("* current weapon is null!");
+            return;
+        }
         _LOG("* current weapon: %s", weaponName);
+        g_currentWeaponName = std::string(weaponName);
+        SendTriggers(g_currentWeaponName);
     }
 
 
-    bool Hook() {
+    bool ApplyHooks() {
         _LOG("Applying hooks...");
         // Hook loadout type registration to obtain pointer to the model handle
         MH_Initialize();
@@ -372,19 +479,18 @@ namespace DualsenseMod {
         return true;
     }
 
-
-    DWORD WINAPI sendHearbeatToDSX(LPVOID lpParam) {
-        // TODO
-        _LOG("FATAL: Failed to find DSX Server.");
-        MessageBoxA (
-            NULL,
-            "Failed to find DSX Server",
-            "Warning",
-            MB_OK | MB_ICONEXCLAMATION
-        );
-        return 0;
-    };
-
+    // we need to spin up a thread and replay the latest adaptive triggers
+    // settings every 30 seconds, otherwise the DSX settings will get lost
+    // if the player stays idle for a while
+    DWORD WINAPI SendHearbeatToDSX(LPVOID lpParam) {
+        while (true) {
+            std::this_thread::sleep_for(std::chrono::seconds(30));
+            if (g_currentWeaponName.empty())
+                continue;
+            _LOG("* Replaying latest adaptive trigger setting!");
+            SendTriggers(g_currentWeaponName);
+        }
+    }
 
     void Init() {
 #if 0
@@ -415,10 +521,15 @@ namespace DualsenseMod {
 
         _LOG("Addresses set");
 
-        Hook();
+        InitTriggerSettings();
 
-        // TODO
-        //CreateThread(NULL, 0, sendHearbeatToDSX, NULL, 0, NULL);
+        ApplyHooks();
+
+        // Disable the savegame call that happens when equipping weapons as this causes stutter and player may switch weapons often
+        unsigned char data[] = { 0x90, 0x90, 0x90, 0x90, 0x90, 0x90 };
+        Utils::WriteMemory(OnWeaponEquipped_SaveGame_Addr.GetUIntPtr(), data, sizeof(data));
+
+        CreateThread(NULL, 0, SendHearbeatToDSX, NULL, 0, NULL);
 
         if ( DSX::init() != DSX::Success ) {
             _LOG("DSX++ client failed to initialize!");
