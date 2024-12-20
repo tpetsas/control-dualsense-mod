@@ -31,6 +31,10 @@ struct TriggerSetting {
     TriggerSetting(TriggerMode mode, std::vector<int> extras) :
         mode(mode), extras(extras) {}
 
+    TriggerSetting(CustomTriggerValueMode customMode, std::vector<int> extras) :
+        customMode(customMode), extras(extras), isCustomTrigger(true),
+        mode(CustomTriggerValue) {}
+
 };
 
 struct Triggers {
@@ -64,33 +68,77 @@ void InitTriggerSettings() {
     g_TriggerSettings =
     {
         {
-            "WEAPON_PISTOL_DEFAULT",
+            "WEAPON_PISTOL_DEFAULT", // Grip
             {
-                .L2 = new TriggerSetting(GameCube, {}),
+                .L2 = new TriggerSetting(Choppy, {}),
                 .R2 = new TriggerSetting(Soft, {}),
             }
         },
         {
-            "WEAPON_SHOTGUN_SINGLESHOT",
+            "WEAPON_SHOTGUN_SINGLESHOT", // Shatter
             {
-                .L2 = new TriggerSetting(Choppy, {}),
-                .R2 = new TriggerSetting(Medium, {})
-            }
-        },
-        {
-            "WEAPON_RAILGUN_STANDARD",
-            {
-                .L2 = new TriggerSetting(Rigid, {}),
+                .L2 = new TriggerSetting (
+                        RigidA,
+                        {60, 71, 56, 128, 195, 210, 256}
+                ),
                 .R2 = new TriggerSetting(Hardest, {})
             }
         },
+        {
+            "WEAPON_SMG_STANDARD", // Spin
+            {
+                .L2 = new TriggerSetting (
+                        RigidA,
+                        {71, 96, 128, 128, 128, 128, 128}
+                ),
+                //.R2 = new TriggerSetting(AutomaticGun, {1, 7, 6})
+                .R2 = new TriggerSetting(Vibration, {3, 4, 14})
+            }
+        },
+        {
+            "WEAPON_RAILGUN_STANDARD", // Pierce
+            {
+                .L2 = new TriggerSetting(Machine, {1, 8, 3, 3, 184}),
+                .R2 = new TriggerSetting (
+                        VibrateResistanceB,
+                        {238, 215, 66, 120, 43, 160, 215}
+                )
+            }
+        },
+        {
+            "WEAPON_ROCKETLAUNCHER_TRIPLESHOT", // Charge
+            {
+                //.L2 = new TriggerSetting(Rigid, {}),
+                .L2 = new TriggerSetting (
+                        RigidA,
+                        {209, 42, 232, 192, 232, 209, 232}
+                ),
+                .R2 = new TriggerSetting (
+                        RigidA,
+                        {209, 42, 232, 192, 232, 209, 232}
+                )
+            }
+        },
+        {
+            "WEAPON_DLC2_STICKYLAUNCHER", // Surge
+            {
+                .L2 = new TriggerSetting(Feedback, {3, 3}),
+                .R2 = new TriggerSetting(VeryHard, {})
+            }
+        }
     };
 }
 
 void SendTriggers(std::string weaponType) {
     Triggers t = g_TriggerSettings[weaponType];
-    DSX::setLeftTrigger (t.L2->mode, t.L2->extras);
-    DSX::setRightTrigger (t.R2->mode, t.R2->extras);
+    if (t.L2->isCustomTrigger)
+        DSX::setLeftCustomTrigger (t.L2->customMode, t.L2->extras);
+    else
+        DSX::setLeftTrigger (t.L2->mode, t.L2->extras);
+    if (t.R2->isCustomTrigger)
+        DSX::setRightCustomTrigger (t.R2->customMode, t.R2->extras);
+    else
+        DSX::setRightTrigger (t.R2->mode, t.R2->extras);
     if (DSX::sendPayload() != DSX::Success) {
         _LOG("DSX++ client failed to send data!");
         return;
@@ -234,6 +282,8 @@ int g_GameInventoryComponentState_EquippedWeaponOffset = 0;
 
 // Globals
 ModelHandle* g_loadoutModelHandle = nullptr;
+std::mutex g_currentWeaponMutex;
+std::string g_currentWeaponName;
 
 HMODULE GetRMDModule(const char* modName) {
     char szModuleName[MAX_PATH] = "";
@@ -384,9 +434,6 @@ namespace DualsenseMod {
         return equippedWeaponId;
     }
 
-    //std::mutex g_mutex;
-
-    std::string g_currentWeaponName;
     void OnGameEvent_Hook(void* entityComponentState, char *event_message) {
         OnGameEvent_Original(entityComponentState, event_message);
         //const std::lock_guard<std::mutex> lock(g_mutex);
@@ -428,8 +475,11 @@ namespace DualsenseMod {
             return;
         }
         _LOG("* current weapon: %s", weaponName);
+
+        g_currentWeaponMutex.lock();
         g_currentWeaponName = std::string(weaponName);
         SendTriggers(g_currentWeaponName);
+        g_currentWeaponMutex.unlock();
     }
 
 
@@ -485,10 +535,12 @@ namespace DualsenseMod {
     DWORD WINAPI SendHearbeatToDSX(LPVOID lpParam) {
         while (true) {
             std::this_thread::sleep_for(std::chrono::seconds(30));
-            if (g_currentWeaponName.empty())
-                continue;
-            _LOG("* Replaying latest adaptive trigger setting!");
-            SendTriggers(g_currentWeaponName);
+            g_currentWeaponMutex.lock();
+            if (!g_currentWeaponName.empty()) {
+                _LOG("* Replaying latest adaptive trigger setting!");
+                SendTriggers(g_currentWeaponName);
+            }
+            g_currentWeaponMutex.unlock();
         }
     }
 

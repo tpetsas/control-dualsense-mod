@@ -18,6 +18,8 @@ if (NOT EXISTS "${DSXPP_SRC}/UDPClient.cpp" OR
     )
 endif()
 
+
+add_definitions(-DDSX_V3)
 include_directories(${DSXPP_SRC})
 
 # Add the source files, including dllmain.cpp
