@@ -1,6 +1,7 @@
 #include "DualsenseMod.h"
 
 #include "Logger.h"
+#include "Config.h"
 #include "Utils.h"
 #include "rva/RVA.h"
 #include "minhook/include/MinHook.h"
@@ -43,6 +44,7 @@ struct Triggers {
 };
 
 // Globals
+Config g_config;
 Logger g_logger;
 std::vector<std::string> g_WeaponList = {
     "WEAPON_PISTOL_DEFAULT",
@@ -91,8 +93,11 @@ void InitTriggerSettings() {
                         RigidA,
                         {71, 96, 128, 128, 128, 128, 128}
                 ),
-                //.R2 = new TriggerSetting(AutomaticGun, {1, 7, 6})
+#ifdef DSX_V3
                 .R2 = new TriggerSetting(Vibration, {3, 4, 14})
+#else // DSC_V2
+                .R2 = new TriggerSetting(AutomaticGun, {1, 7, 6})
+#endif
             }
         },
         {
@@ -122,7 +127,11 @@ void InitTriggerSettings() {
         {
             "WEAPON_DLC2_STICKYLAUNCHER", // Surge
             {
+#ifdef DSX_V3
                 .L2 = new TriggerSetting(Feedback, {3, 3}),
+#else // DSC_V2
+                .L2 = new TriggerSetting(Rigid, {})
+#endif
                 .R2 = new TriggerSetting(VeryHard, {})
             }
         }
@@ -152,7 +161,7 @@ static DWORD mainThread = -1;
 
 // Game functions
 using _OnGameEvent_Internal =
-                    void(*)(void* entityComponentState, char *event_message);
+                    void(*)(void* entityComponentState, char *eventMessage);
 using _Loadout_TypeRegistration =
                     void(*)(void* a1, void* loadoutModelObject);
 using _AppEventHandler =
@@ -163,6 +172,11 @@ using _InputManager_IsLoadingOn =
                     bool(*)(void* inputManager);
 using _InputManager_IsGameOn =
                     bool(*)(void* inputManager);
+using _InputManager_SetGame =
+                    void(*)(void* inputManager, bool on);
+using _InputManager_SetMenu =
+                    void(*)(void* inputManager, bool on);
+
 
 struct ModelHandle {
     void* unk00[2];        // 00
@@ -273,6 +287,12 @@ _InputManager_IsMenuOn InputManager_IsMenuOn = nullptr;
 _InputManager_IsLoadingOn InputManager_IsLoadingOn = nullptr;
 // to skip equip weapon events when we are on a non-game screen
 _InputManager_IsGameOn InputManager_IsGameOn = nullptr;
+// to turn off adaptive triggers when not in game
+_InputManager_SetGame InputManager_SetGame_Internal = nullptr;
+_InputManager_SetGame InputManager_SetGame_Original = nullptr;
+// to turn off adaptive triggers when on player menu
+_InputManager_SetMenu InputManager_SetMenu_Internal = nullptr;
+_InputManager_SetMenu InputManager_SetMenu_Original = nullptr;
 
 // Offsets / Struct Sizes
 int g_WeaponEntrySize = 0;
@@ -282,6 +302,8 @@ int g_GameInventoryComponentState_EquippedWeaponOffset = 0;
 
 // Globals
 ModelHandle* g_loadoutModelHandle = nullptr;
+// This is needed because there is a small race between the DSX heartbeat
+// thread and the OnGameEvent hook
 std::mutex g_currentWeaponMutex;
 std::string g_currentWeaponName;
 
@@ -326,10 +348,30 @@ namespace DualsenseMod {
             );
 
         HMODULE hInput = GetRMDModule("input");
-        InputManager_ppInstance = (void**)GetProcAddress(hInput, "?sm_pInstance@InputManager@input@@0PEAV12@EA");
-        InputManager_IsMenuOn = (_InputManager_IsMenuOn)GetProcAddress(hInput, "?isMenuOn@InputManager@input@@QEAA_NXZ");
-        InputManager_IsLoadingOn = (_InputManager_IsMenuOn)GetProcAddress(hInput, "?isLoadingOn@InputManager@input@@QEAA_NXZ");
-        InputManager_IsGameOn = (_InputManager_IsGameOn)GetProcAddress(hInput, "?isGameOn@InputManager@input@@QEAA_NXZ");
+        InputManager_ppInstance = (void**) GetProcAddress (
+            hInput,
+            "?sm_pInstance@InputManager@input@@0PEAV12@EA"
+        );
+        InputManager_IsMenuOn = (_InputManager_IsMenuOn) GetProcAddress (
+            hInput,
+            "?isMenuOn@InputManager@input@@QEAA_NXZ"
+        );
+        InputManager_IsLoadingOn = (_InputManager_IsMenuOn) GetProcAddress (
+            hInput,
+            "?isLoadingOn@InputManager@input@@QEAA_NXZ"
+        );
+        InputManager_IsGameOn = (_InputManager_IsGameOn) GetProcAddress (
+            hInput,
+            "?isGameOn@InputManager@input@@QEAA_NXZ"
+        );
+        InputManager_SetGame_Internal = (_InputManager_SetGame) GetProcAddress (
+            hInput,
+            "?setGame@InputManager@input@@QEAAX_N@Z"
+        );
+        InputManager_SetMenu_Internal = (_InputManager_SetMenu) GetProcAddress (
+            hInput,
+            "?setMenu@InputManager@input@@QEAAX_N@Z"
+        );
 
         _LOG("Offsets: %X, %X, %X, %X",
             g_WeaponEntry_GIDEntity_Offset,
@@ -343,35 +385,40 @@ namespace DualsenseMod {
             ModelHandle_GetPropertyHandle
         );
         _LOG("InputManager_pInstance at %p",
-                InputManager_ppInstance
+            InputManager_ppInstance
         );
         _LOG("InputManager_IsMenuOn at %p",
-                InputManager_IsMenuOn
+            InputManager_IsMenuOn
         );
         _LOG("InputManager_IsLoadingOn at %p",
-                InputManager_IsLoadingOn
+            InputManager_IsLoadingOn
         );
         _LOG("InputManager_IsGameOn at %p",
-                InputManager_IsGameOn
+            InputManager_IsGameOn
+        );
+        _LOG("InputManager_SetGame_Internal at %p",
+            InputManager_SetGame_Internal
+        );
+        _LOG("InputManager_SetMenu_Internal at %p",
+            InputManager_SetMenu_Internal
         );
 
-        if (!ModelHandle_GetPropertyHandle || !InputManager_ppInstance || !InputManager_IsMenuOn || !InputManager_IsLoadingOn || !InputManager_IsGameOn)
+        if (!ModelHandle_GetPropertyHandle || !InputManager_ppInstance || !InputManager_IsMenuOn || !InputManager_IsLoadingOn || !InputManager_IsGameOn || !InputManager_SetGame_Internal || !InputManager_SetMenu_Internal)
             return false;
 
         return true;
     }
 
+    void setAdaptiveTriggersForCurrrentWeapon();
     void Loadout_TypeRegistration_Hook(void *arg1, void *loadoutModelObject) {
         if (!g_loadoutModelHandle) {
             g_loadoutModelHandle =
                     (ModelHandle *) ((char *)loadoutModelObject - 0x18);
             _LOG("g_loadoutModelHandle: %p", g_loadoutModelHandle);
-
             DWORD threadId = GetCurrentThreadId();
             _LOG("Main thread id: %d", threadId);
             mainThread = threadId;
         }
-
         Loadout_TypeRegistration_Original(arg1, loadoutModelObject);
     }
 
@@ -434,54 +481,117 @@ namespace DualsenseMod {
         return equippedWeaponId;
     }
 
-    void OnGameEvent_Hook(void* entityComponentState, char *event_message) {
-        OnGameEvent_Original(entityComponentState, event_message);
-        //const std::lock_guard<std::mutex> lock(g_mutex);
-        bool isMenuOn = InputManager_IsMenuOn(*InputManager_ppInstance);
-        if (isMenuOn) {
-            _LOG("We are on a menu screen, just skipping...");
+    void resetAdaptiveTriggers() {
+        // TODO: do that in a separate thread to aboid stuttering
+        DSX::reset();
+        if (DSX::sendPayload() != DSX::Success) {
+            _LOG("DSX++ client failed to send data!");
             return;
         }
-        bool isLoadingOn = InputManager_IsLoadingOn(*InputManager_ppInstance);
-        if (isLoadingOn) {
-            _LOG("We are on a loading screen, just skipping...");
-            return;
-        }
-        bool isGameOn = InputManager_IsGameOn(*InputManager_ppInstance);
-        if (!isGameOn) {
-            _LOG("We are NOT on a Game screen, just skipping...");
-            return;
-        }
-        if (event_message == nullptr) {
-            _LOG("event message is null!");
-            return;
-        }
-        //_LOG("in OnGameEvent hook! - event message: \"%s\"", event_message);
-        if (strcmp(event_message, "weapon_equipped")) {
-            return;
-        }
+        _LOG("Addaptive Trigger reset successfully!");
+    }
+
+    void setAdaptiveTriggersForCurrrentWeapon() {
         if (!g_loadoutModelHandle) {
-            _LOG("loadout not set yet, skipping...");
+            _LOGD("loadout not set yet, skipping...");
             return;
         }
         uint64_t weaponId = getCurrentlyEquippedWeaponId();
         if (weaponId == 0) {
-            _LOG("* current weapon Id was zero; skipping...");
+            _LOGD("* current weapon Id was zero; skipping...");
             return;
         }
         const char* weaponName = getWeaponName(weaponId);
         if (weaponName == nullptr) {
-            _LOG("* current weapon is null!");
+            _LOGD("* current weapon is null!");
             return;
         }
-        _LOG("* current weapon: %s", weaponName);
-
+        _LOG("* Set adaptive triggers for current weapon: %s", weaponName);
         g_currentWeaponMutex.lock();
         g_currentWeaponName = std::string(weaponName);
         SendTriggers(g_currentWeaponName);
         g_currentWeaponMutex.unlock();
     }
 
+    void replayLatestAdaptiveTriggers() {
+        g_currentWeaponMutex.lock();
+        if (!g_currentWeaponName.empty()) {
+            _LOG("* Replaying latest adaptive trigger setting!");
+            SendTriggers(g_currentWeaponName);
+        }
+        g_currentWeaponMutex.unlock();
+    }
+
+    void OnGameEvent_Hook(void* entityComponentState, char *eventMessage) {
+        OnGameEvent_Original(entityComponentState, eventMessage);
+        _LOG("in OnGameEvent hook! - event message: \"%s\"", eventMessage);
+        bool isGameOn = InputManager_IsGameOn(*InputManager_ppInstance);
+        if (!isGameOn) {
+            _LOG("We are NOT on a Game screen, just skipping...");
+            return;
+        }
+        bool isMenuOn = InputManager_IsMenuOn(*InputManager_ppInstance);
+        if (isMenuOn) {
+            _LOG("We are on a menu screen, just skipping...");
+            return;
+        }
+#if 0
+        bool isLoadingOn = InputManager_IsLoadingOn(*InputManager_ppInstance);
+        if (isLoadingOn) {
+            _LOGD("We are on a loading screen, just skipping...");
+            return;
+        }
+#endif
+        if (eventMessage == nullptr) {
+            _LOGD("event message is null!");
+            return;
+        }
+        _LOGD("in OnGameEvent hook! - event message: \"%s\"", eventMessage);
+
+        // case of entring the game screen for the first time
+        if (g_currentWeaponName.empty() &&
+                !strcmp(eventMessage, "unholster_end")) {
+            setAdaptiveTriggersForCurrrentWeapon();
+        }
+
+        if (strcmp(eventMessage, "weapon_equipped")) {
+            return;
+        }
+        setAdaptiveTriggersForCurrrentWeapon();
+    }
+
+
+    void InputManager_SetGame_Hook (void* inputManager, bool on) {
+        InputManager_SetGame_Original(inputManager, on);
+        _LOG("In InputManager::SetGame hook, on: %s", on ? "true" : "false");
+        if (!on) {
+            _LOG(" * (pause menu) turn off adaptive triggers!");
+            resetAdaptiveTriggers();
+            return;
+        }
+        // on: enable adaptive triggers again
+        _LOG(" * (in game again!) turn on adaptive triggers!");
+        //setAdaptiveTriggersForCurrrentWeapon();
+        replayLatestAdaptiveTriggers();
+    }
+
+    void InputManager_SetMenu_Hook (void *inputManager, bool on) {
+        InputManager_SetMenu_Original(inputManager, on);
+        _LOG("In InputManager::SetMenu hook, on: %s", on ? "true" : "false");
+        if (on) {
+            _LOG(" * (Player menu) turn off adaptive triggers!");
+            resetAdaptiveTriggers();
+            return;
+        }
+        // off: enable adaptive triggers again
+        // no need to set the adaptive triggers here, SetGame_Hook will do
+
+        bool isGameOn = InputManager_IsGameOn(*InputManager_ppInstance);
+        if (isGameOn) {
+            _LOG(" * (in game again!) turn on adaptive triggers!");
+            replayLatestAdaptiveTriggers();
+        }
+    }
 
     bool ApplyHooks() {
         _LOG("Applying hooks...");
@@ -504,9 +614,33 @@ namespace DualsenseMod {
             reinterpret_cast<LPVOID *>(&OnGameEvent_Original)
         );
         if (MH_EnableHook(OnGameEvent_Internal) != MH_OK) {
-            _LOG("FATAL: Failed to install OnGameEvent_Internal hook.");
+            _LOG("FATAL: Failed to install OnGameEvent hook.");
             return false;
         }
+
+
+        // Hook
+        MH_CreateHook (
+            InputManager_SetMenu_Internal,
+            InputManager_SetMenu_Hook,
+            reinterpret_cast<LPVOID *>(&InputManager_SetMenu_Original)
+        );
+        if (MH_EnableHook(InputManager_SetMenu_Internal) != MH_OK) {
+            _LOG("FATAL: Failed to install InputManager::SetMenu hook.");
+            return false;
+        }
+
+        // Hook
+        MH_CreateHook (
+            InputManager_SetGame_Internal,
+            InputManager_SetGame_Hook,
+            reinterpret_cast<LPVOID *>(&InputManager_SetGame_Original)
+        );
+        if (MH_EnableHook(InputManager_SetGame_Internal) != MH_OK) {
+            _LOG("FATAL: Failed to install InputManager::SetGame hook.");
+            return false;
+        }
+
         _LOG("Hooks applied successfully!");
         return true;
     }
@@ -535,12 +669,18 @@ namespace DualsenseMod {
     DWORD WINAPI SendHearbeatToDSX(LPVOID lpParam) {
         while (true) {
             std::this_thread::sleep_for(std::chrono::seconds(30));
-            g_currentWeaponMutex.lock();
-            if (!g_currentWeaponName.empty()) {
-                _LOG("* Replaying latest adaptive trigger setting!");
-                SendTriggers(g_currentWeaponName);
+
+            bool isGameOn = InputManager_IsGameOn(*InputManager_ppInstance);
+            if (!isGameOn) {
+                _LOG("We are NOT on a Game screen, just skipping...");
+                continue;
             }
-            g_currentWeaponMutex.unlock();
+            bool isMenuOn = InputManager_IsMenuOn(*InputManager_ppInstance);
+            if (isMenuOn) {
+                _LOG("We are on a menu screen, just skipping...");
+                continue;
+            }
+            replayLatestAdaptiveTriggers();
         }
     }
 
