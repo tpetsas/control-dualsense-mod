@@ -7,3 +7,4 @@ Built with the tools and technologies:
 ![C](https://img.shields.io/badge/C-A8B9CC?logo=C&logoColor=white)
 ![C++](https://img.shields.io/badge/-C++-darkblue?logo=cplusplus)
 ![Ghidra](https://tinyurl.com/yuv64wyh)
+![Radare2](https://tinyurl.com/52tue3ve)
