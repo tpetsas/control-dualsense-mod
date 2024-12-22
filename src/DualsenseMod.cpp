@@ -488,7 +488,7 @@ namespace DualsenseMod {
             _LOG("DSX++ client failed to send data!");
             return;
         }
-        _LOG("Addaptive Trigger reset successfully!");
+        _LOG("Addaptive Triggers reset successfully!");
     }
 
     void setAdaptiveTriggersForCurrrentWeapon() {
@@ -516,7 +516,7 @@ namespace DualsenseMod {
     void replayLatestAdaptiveTriggers() {
         g_currentWeaponMutex.lock();
         if (!g_currentWeaponName.empty()) {
-            _LOG("* Replaying latest adaptive trigger setting!");
+            _LOGD("* Replaying latest adaptive trigger setting!");
             SendTriggers(g_currentWeaponName);
         }
         g_currentWeaponMutex.unlock();
@@ -524,15 +524,15 @@ namespace DualsenseMod {
 
     void OnGameEvent_Hook(void* entityComponentState, char *eventMessage) {
         OnGameEvent_Original(entityComponentState, eventMessage);
-        _LOG("in OnGameEvent hook! - event message: \"%s\"", eventMessage);
+        _LOGD("in OnGameEvent hook! - event message: \"%s\"", eventMessage);
         bool isGameOn = InputManager_IsGameOn(*InputManager_ppInstance);
         if (!isGameOn) {
-            _LOG("We are NOT on a Game screen, just skipping...");
+            _LOGD("We are NOT on a Game screen, just skipping...");
             return;
         }
         bool isMenuOn = InputManager_IsMenuOn(*InputManager_ppInstance);
         if (isMenuOn) {
-            _LOG("We are on a menu screen, just skipping...");
+            _LOGD("We are on a menu screen, just skipping...");
             return;
         }
 #if 0
@@ -551,6 +551,7 @@ namespace DualsenseMod {
         // case of entring the game screen for the first time
         if (g_currentWeaponName.empty() &&
                 !strcmp(eventMessage, "unholster_end")) {
+            _LOG("Entered the Game!");
             setAdaptiveTriggersForCurrrentWeapon();
         }
 
@@ -571,7 +572,6 @@ namespace DualsenseMod {
         }
         // on: enable adaptive triggers again
         _LOG(" * (in game again!) turn on adaptive triggers!");
-        //setAdaptiveTriggersForCurrrentWeapon();
         replayLatestAdaptiveTriggers();
     }
 
@@ -672,12 +672,12 @@ namespace DualsenseMod {
 
             bool isGameOn = InputManager_IsGameOn(*InputManager_ppInstance);
             if (!isGameOn) {
-                _LOG("We are NOT on a Game screen, just skipping...");
+                _LOGD("We are NOT on a Game screen, just skipping...");
                 continue;
             }
             bool isMenuOn = InputManager_IsMenuOn(*InputManager_ppInstance);
             if (isMenuOn) {
-                _LOG("We are on a menu screen, just skipping...");
+                _LOGD("We are on a menu screen, just skipping...");
                 continue;
             }
             replayLatestAdaptiveTriggers();
