@@ -11,3 +11,46 @@ Built with the tools and technologies:
 [![Radare2](https://tinyurl.com/52tue3ve)](https://rada.re/n/radare2.html)
 
 
+## Overview
+
+This mod allows players with a Playstation 5 Dualsense controller to play Control Ultimate Edition with adaptive triggers. The adaptive triggers are assigned based on the current weapon form.
+
+## Features
+
+[DSX]: https://store.steampowered.com/app/1812620/DSX/
+[2kreg]: https://next.nexusmods.com/profile/registrator2000?gameId=2936
+[Control Plugin Loader]: https://www.nexusmods.com/control/mods/16
+
+This mod adds the following features:
+- Addaptive Triggers for both L2 and R2 for each weapond form
+    - **Note:** I don't own a PS5 and I don't have access to the PS5 version of the game; I tried to replicate the adaptive trigger effects based on some videos I found on the web
+- Addaptive triggers get disabled when the player is on an inner Menu or the game is paused
+
+## Requirements
+
+This mod requires the following:
+- A thirdparty app: [DSX]. You can purchase this app from Steam. There is also a older version of the app you can [download for free](https://github.com/Paliverse/DualSenseX/releases/tag/1.4.9), though I haven't tested the mod there, so it is not certain if this version it is fully compatible with the mod.
+- [Control Plugin Loader], a DLL loader that allows mods to modify low-level parts of the game using native code implemented by [2kreg].
+
+## Installation
+
+- Make sure you have a version of DSX app running
+
+> ### Set the DSX version
+> Make sure to switch to either DSX v2:
+> * There should be a button on the top left of the app
+>
+>or DSX v3.1 (BETA at the time of writing) — **recommended**
+>* Follow the instructions here: [DSX — How to Switch Branch on Steam](https://steamcommunity.com/sharedfiles/filedetails/?id=3330635677)
+>
+> **Note:** *DSX v3.0 is not supported!*
+
+-
+
+## Configuration
+
+## Credits
+
+[2kreg] for [Control Plugin Loader] and all the knowledge and examples from all their other Control mods! Thanks! :metal:
+
+[Paliverse](https://github.com/Paliverse) for making [DSX]!
