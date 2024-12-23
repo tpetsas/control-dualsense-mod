@@ -58,9 +58,15 @@ Make sure to click on "Fix Firewall Rules" and enable the "Incoming UDP" option.
 
 - Download the latest release of the dualsense-mod: XXX and unzip it in Control's main directory. This should be in the following path: `C:\Program Files (x86)\Steam\steamapps\common\Control`
 
-After doing that, a new directory should have been created in the Control's main directory with the name `plugins`. The content of this directory should look like this:
+After doing that, a new directory should have been created in the Control's main directory with the name `plugins`and a new file should be added there too with the name `xinput1_4.dll` (this is our plugin loader). The content of Control's directory should look like this (the new content is highlighted in light blue color):
 
-IMAGE HERE
+<img src="https://github.com/user-attachments/assets/ce8e9ecb-0890-406a-b023-ff26fc9996a2" alt="new-content" width="400"/>
+
+Also, the content of `plugins` directory should look like this:
+
+<img src="https://github.com/user-attachments/assets/e0075a26-4dd2-4fcb-adfd-5bbd06dc57ea" alt="plugins-content" width="400"/>
+
+Mind that `modlog.log` is the file that the mod creates when the game launches and stores all the mod logs. It shouldn't be there right after unzipping the release zip, but you should be able to see it as soon as you launch the game.
 
 ## Configuration
 
