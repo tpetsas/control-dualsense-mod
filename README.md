@@ -10,6 +10,7 @@ Built with the tools and technologies:
 [![Ghidra](https://tinyurl.com/yuv64wyh)](https://ghidra-sre.org/)
 [![Radare2](https://tinyurl.com/52tue3ve)](https://rada.re/n/radare2.html)
 
+<img src="https://github.com/user-attachments/assets/d997ea9b-d3e0-4d07-8688-553caa2e3fd5" alt="dualsense-mod" width="400"/>
 
 ## Overview
 
