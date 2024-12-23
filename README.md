@@ -45,7 +45,16 @@ This mod requires the following:
 >
 > **Note:** *DSX v3.0 is not supported!*
 
--
+- **Important:** Make sure that Incoming UDP setting is enabled
+To enable this setting navigate to ⚙️ Settings **>** Networking in your DSX app
+*TODO:* _Add arrows and boxes to show the exacts settings that need to be changed!_
+
+<img src="https://github.com/user-attachments/assets/49766968-f24b-4839-918f-4fea32781c5a" alt="enableUDP" width="400"/>
+
+Make sure to click on "Fix Firewall Rules" and enable the "Incoming UDP" option. After doing that the Networking tab should show the following:
+
+<img src="https://github.com/user-attachments/assets/011eb449-56a3-4304-82e3-95583e33fdcf" alt="UDPEnabled" width="400"/>
+
 
 ## Configuration
 
