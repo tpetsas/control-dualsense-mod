@@ -16,6 +16,10 @@ Built with the tools and technologies:
 
 This mod allows players with a Playstation 5 Dualsense controller to play Control Ultimate Edition with adaptive triggers. The adaptive triggers are assigned based on the current weapon form.
 
+### Mod Showcase
+
+(**TODO:** Add link with video on Youtube)
+
 ## Features
 
 [DSX]: https://store.steampowered.com/app/1812620/DSX/
@@ -48,7 +52,8 @@ This mod requires the following:
 
 - **Important:** Make sure that Incoming UDP setting is enabled
 To enable this setting navigate to ⚙️ Settings **>** Networking in your DSX app
-*TODO:* _Add arrows and boxes to show the exacts settings that need to be changed!_
+
+(**TODO:** _Add arrows and boxes to show the exacts settings that need to be changed!_)
 
 <img src="https://github.com/user-attachments/assets/49766968-f24b-4839-918f-4fea32781c5a" alt="enableUDP" width="400"/>
 
@@ -84,6 +89,11 @@ version=2.5
 ```
 
 In this configuration, the `debug=true` option of the `[app]` section will make the mod to output a lot more information to its respective log file (`plugins\modlog.log`), while the `version=2.5` option of the `[dsx]` section will enable the legacy DSX version adaptive triggers. The default values of the above options (i.e., if no INI file is used) are `debug=false` & `vertion=3.1`.
+
+**TODO:**
+- Add issues instructions
+- Link Discord channel of DSX
+
 
 ## Credits
 
