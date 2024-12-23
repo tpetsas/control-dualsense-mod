@@ -93,11 +93,7 @@ void InitTriggerSettings() {
                         RigidA,
                         {71, 96, 128, 128, 128, 128, 128}
                 ),
-#ifdef DSX_V3
                 .R2 = new TriggerSetting(Vibration, {3, 4, 14})
-#else // DSC_V2
-                .R2 = new TriggerSetting(AutomaticGun, {1, 7, 6})
-#endif
             }
         },
         {
@@ -127,15 +123,18 @@ void InitTriggerSettings() {
         {
             "WEAPON_DLC2_STICKYLAUNCHER", // Surge
             {
-#ifdef DSX_V3
                 .L2 = new TriggerSetting(Feedback, {3, 3}),
-#else // DSC_V2
-                .L2 = new TriggerSetting(Rigid, {})
-#endif
                 .R2 = new TriggerSetting(VeryHard, {})
             }
         }
     };
+
+    if (g_config.isDSXVersion2) {
+        g_TriggerSettings["WEAPON_SMG_STANDARD"].R2 =
+            new TriggerSetting(AutomaticGun, {1, 7, 6}); // Spin
+        g_TriggerSettings["WEAPON_DLC2_STICKYLAUNCHER"].L2 =
+            new TriggerSetting(Rigid, {}); // Surge
+    }
 }
 
 void SendTriggers(std::string weaponType) {
