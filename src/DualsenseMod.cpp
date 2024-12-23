@@ -21,7 +21,7 @@
 #include <chrono>
 #include <mutex>
 
-#define INI_LOCATION "./plugins/DualsenseMod.ini"
+#define INI_LOCATION "./plugins/dualsense-mod.ini"
 
 struct TriggerSetting {
     TriggerMode mode;
@@ -483,7 +483,9 @@ namespace DualsenseMod {
 
     void resetAdaptiveTriggers() {
         // TODO: do that in a separate thread to aboid stuttering
-        DSX::reset();
+        // reset triggers to Normal mode
+        DSX::setLeftTrigger (Normal);
+        DSX::setRightTrigger (Normal);
         if (DSX::sendPayload() != DSX::Success) {
             _LOG("DSX++ client failed to send data!");
             return;
@@ -583,9 +585,6 @@ namespace DualsenseMod {
             resetAdaptiveTriggers();
             return;
         }
-        // off: enable adaptive triggers again
-        // no need to set the adaptive triggers here, SetGame_Hook will do
-
         bool isGameOn = InputManager_IsGameOn(*InputManager_ppInstance);
         if (isGameOn) {
             _LOG(" * (in game again!) turn on adaptive triggers!");
@@ -694,6 +693,7 @@ namespace DualsenseMod {
             g_logger.Open(logPath);
         }
 #endif
+        // this should be first in order to be able to log
         g_logger.Open("./plugins/modlog.log");
         _LOG("DualsenseMod v1.0 by Thanos Petsas (SkyExplosionist)");
         _LOG("Game version: %" PRIX64, Utils::GetGameVersion());
@@ -712,6 +712,10 @@ namespace DualsenseMod {
         }
 
         _LOG("Addresses set");
+
+        // init config
+        g_config = Config(INI_LOCATION);
+        g_config.print();
 
         InitTriggerSettings();
 

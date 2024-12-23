@@ -27,6 +27,7 @@ add_library(dualsense-mod SHARED
     src/dllmain.cpp
     src/Logger.cpp
     src/Utils.cpp
+    src/Config.cpp
     src/DualsenseMod.cpp
     src/minhook/src/buffer.c
     src/minhook/src/hook.c
