@@ -56,6 +56,12 @@ Make sure to click on "Fix Firewall Rules" and enable the "Incoming UDP" option.
 
 <img src="https://github.com/user-attachments/assets/011eb449-56a3-4304-82e3-95583e33fdcf" alt="UDPEnabled" width="400"/>
 
+- Download the latest release of the dualsense-mod: XXX and unzip it in Control's main directory. This should be in the following path: `C:\Program Files (x86)\Steam\steamapps\common\Control`
+
+After doing that, a new directory should have been created in the Control's main directory with the name `plugins`. The content of this directory should look like this:
+
+IMAGE HERE
+
 ## Configuration
 
 The mod supports two configuration options as of now via an INI file stored in the `plugins` directory named `dualsense-mod.ini`
