@@ -23,9 +23,9 @@ This mod allows players with a Playstation 5 Dualsense controller to play Contro
 [Control Plugin Loader]: https://www.nexusmods.com/control/mods/16
 
 This mod adds the following features:
-- Addaptive Triggers for both L2 and R2 for each weapond form
+- Adaptive Triggers for both L2 and R2 for each weapon form
     - **Note:** I don't own a PS5 and I don't have access to the PS5 version of the game; I tried to replicate the adaptive trigger effects based on some videos I found on the web
-- Addaptive triggers get disabled when the player is on an inner Menu or the game is paused
+- Adaptive triggers get disabled when the player is on an inner Menu or the game is paused
 
 ## Requirements
 

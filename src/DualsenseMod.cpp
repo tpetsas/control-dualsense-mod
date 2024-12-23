@@ -152,7 +152,7 @@ void SendTriggers(std::string weaponType) {
         _LOG("DSX++ client failed to send data!");
         return;
     }
-    _LOG("Addaptive Trigger settings sent successfully!");
+    _LOG("Adaptive Trigger settings sent successfully!");
 }
 
 // Game global vars
@@ -490,7 +490,7 @@ namespace DualsenseMod {
             _LOG("DSX++ client failed to send data!");
             return;
         }
-        _LOG("Addaptive Triggers reset successfully!");
+        _LOG("Adaptive Triggers reset successfully!");
     }
 
     void setAdaptiveTriggersForCurrrentWeapon() {
