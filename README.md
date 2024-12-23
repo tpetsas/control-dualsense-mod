@@ -56,8 +56,22 @@ Make sure to click on "Fix Firewall Rules" and enable the "Incoming UDP" option.
 
 <img src="https://github.com/user-attachments/assets/011eb449-56a3-4304-82e3-95583e33fdcf" alt="UDPEnabled" width="400"/>
 
-
 ## Configuration
+
+The mod supports two configuration options as of now via an INI file stored in the `plugins` directory named `dualsense-mod.ini`
+
+A sample content of the file is the following (also found in the current repo at `config/dualsense-mod.INI`:
+
+
+```
+[app]
+debug=true
+
+[dsx]
+version=2.5
+```
+
+In this configuration, the `debug=true` option of the `[app]` section will make the mod to output a lot more information to its respective log file (`plugins\modlog.log`), while the `version=2.5` option of the `[dsx]` section will enable the legacy DSX version adaptive triggers. The default values of the above options (i.e., if no INI file is used) are `debug=false` & `vertion=3.1`.
 
 ## Credits
 
