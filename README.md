@@ -61,7 +61,7 @@ Make sure to click on "Fix Firewall Rules" and enable the "Incoming UDP" option.
 
 <img src="https://github.com/user-attachments/assets/011eb449-56a3-4304-82e3-95583e33fdcf" alt="UDPEnabled" width="400"/>
 
-- Download the latest release of the dualsense-mod: XXX and unzip it in Control's main directory. This should be in the following path: `C:\Program Files (x86)\Steam\steamapps\common\Control`
+- Download the latest release of the dualsense-mod: [control-dualsense-mod-v1.0.0.zip](https://github.com/tpetsas/control-dualsense-mod/releases/download/1.0.0/control-dualsense-mod-v1.0.0.zip) and unzip it in Control's main directory. This should be in the following path: `C:\Program Files (x86)\Steam\steamapps\common\Control`
 
 After doing that, a new directory should have been created in the Control's main directory with the name `plugins`and a new file should be added there too with the name `xinput1_4.dll` (this is our plugin loader). The content of Control's directory should look like this (the new content is highlighted in light blue color):
 
