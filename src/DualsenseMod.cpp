@@ -156,16 +156,19 @@ void SendTriggers(std::string weaponType) {
 
 // Game global vars
 
+// Use DSM_ prefix for some symbols to avoid collision with
+// service weapon hotkeys mod
+
 static DWORD mainThread = -1;
 
 // Game functions
 using _OnGameEvent_Internal =
                     void(*)(void* entityComponentState, char *eventMessage);
-using _Loadout_TypeRegistration =
+using _DSM_Loadout_TypeRegistration =
                     void(*)(void* a1, void* loadoutModelObject);
 using _AppEventHandler =
                     bool(*)(void* EventHandler_self, void* evt);
-using _InputManager_IsMenuOn =
+using _DSM_InputManager_IsMenuOn =
                     bool(*)(void* inputManager);
 using _InputManager_IsGameOn =
                     bool(*)(void* inputManager);
@@ -196,7 +199,7 @@ struct PropertyHandle {
     //...
 };
 
-using _ModelHandle_GetPropertyHandle = PropertyHandle * (*)(
+using _DSM_ModelHandle_GetPropertyHandle = PropertyHandle * (*)(
     void* modelHandle,
     void* size_20h_struct,
     const char* propertyName
@@ -232,38 +235,32 @@ struct GamepadButtonEvent {
 // Offset of the GIDEntity (first) and GameInventoryComponentState (second)
 // from ModelHandle
 RVA<uintptr_t>
-Addr_Entry_GIDEntity_and_ModelHandle_GameInventoryComponentState_Offset (
+DSM_Addr_Entry_GIDEntity_and_ModelHandle_GameInventoryComponentState_Offset (
     "48 8B 83 ? ? ? ? 45 8B CC 48 8B 8E ? ? ? ? 48 89 84 24"
 );
 
 // Size of each weapon entry in the model
 RVA<uintptr_t>
-Addr_WeaponEntrySize (
+DSM_Addr_WeaponEntrySize (
     "48 69 C0 ? ? ? ? 4C 63 E2 48 03 C7"
 );
 
 // Offset of currently equipped weapon from GameInventoryComponentState
 RVA<uintptr_t>
-Addr_GameInventoryComponentState_EquippedWeaponOffset (
+DSM_Addr_GameInventoryComponentState_EquippedWeaponOffset (
     "48 8B 89 ? ? ? ? 48 39 08 74 0C"
 );
 
-// savegame call inside OnWeaponEquipped
-RVA<uintptr_t>
-OnWeaponEquipped_SaveGame_Addr (
-    "33 D2 45 33 C0 8D 4A 02 FF 15 ? ? ? ? 4C 8D 05 ? ? ? ?", 8
-);
-
 // From coherentuigt, to retrieve a property handle from a model handle by name
-_ModelHandle_GetPropertyHandle ModelHandle_GetPropertyHandle = nullptr;
+_DSM_ModelHandle_GetPropertyHandle DSM_ModelHandle_GetPropertyHandle = nullptr;
 
 // Hooks
 
 // We hook this one to receive loadoutModelHandle + 0x18 in arg2
-RVA<_Loadout_TypeRegistration> Loadout_TypeRegistration_Internal (
+RVA<_DSM_Loadout_TypeRegistration> DSM_Loadout_TypeRegistration_Internal (
     "E8 ? ? ? ? 48 8B D7 48 8B CB FF 15 ? ? ? ? 4D 8B 0E 48 8D 15 ? ? ? ?", 0, 1, 5
 );
-_Loadout_TypeRegistration Loadout_TypeRegistration_Original = nullptr;
+_DSM_Loadout_TypeRegistration DSM_Loadout_TypeRegistration_Original = nullptr;
 
 // This function is called every time a game event takes place. We purposely
 // avoid hooking an equip weapon function to avoid conflicts with other mods,
@@ -276,10 +273,10 @@ OnGameEvent_Internal (
 _OnGameEvent_Internal OnGameEvent_Original = nullptr;
 // from input - InputManager is created quite early, before startvideos.tex
 // plays
-void** InputManager_ppInstance = nullptr;
+void** DSM_InputManager_ppInstance = nullptr;
 // from input, to determine whether a menu
 // (e.g. inventory / conversation / fast travel) is active
-_InputManager_IsMenuOn InputManager_IsMenuOn = nullptr;
+_DSM_InputManager_IsMenuOn DSM_InputManager_IsMenuOn = nullptr;
 // to skip equip weapon events when we are on a non-game screen
 _InputManager_IsGameOn InputManager_IsGameOn = nullptr;
 // to turn off adaptive triggers when not in game
@@ -323,31 +320,31 @@ namespace DualsenseMod {
     // Read and populate offsets and addresses from game code
     bool PopulateOffsets() {
         g_WeaponEntry_GIDEntity_Offset = *reinterpret_cast<uint32_t *> (
-            Addr_Entry_GIDEntity_and_ModelHandle_GameInventoryComponentState_Offset.GetUIntPtr() + 3
+            DSM_Addr_Entry_GIDEntity_and_ModelHandle_GameInventoryComponentState_Offset.GetUIntPtr() + 3
         );
         g_ModelHandle_GameInventoryComponentState_Offset = *reinterpret_cast<uint32_t *> (
-            Addr_Entry_GIDEntity_and_ModelHandle_GameInventoryComponentState_Offset.GetUIntPtr() + 13
+            DSM_Addr_Entry_GIDEntity_and_ModelHandle_GameInventoryComponentState_Offset.GetUIntPtr() + 13
         );
         g_WeaponEntrySize = *reinterpret_cast<uint32_t *> (
-            Addr_WeaponEntrySize.GetUIntPtr() + 3
+            DSM_Addr_WeaponEntrySize.GetUIntPtr() + 3
         );
         g_GameInventoryComponentState_EquippedWeaponOffset = *reinterpret_cast<uint32_t *> (
-            Addr_GameInventoryComponentState_EquippedWeaponOffset.GetUIntPtr() + 3
+            DSM_Addr_GameInventoryComponentState_EquippedWeaponOffset.GetUIntPtr() + 3
         );
 
         HMODULE hMod = GetModuleHandleA("coherentuigt.dll");
-        ModelHandle_GetPropertyHandle =
-            (_ModelHandle_GetPropertyHandle) GetProcAddress (
+        DSM_ModelHandle_GetPropertyHandle =
+            (_DSM_ModelHandle_GetPropertyHandle) GetProcAddress (
                 hMod,
                 "?GetPropertyHandle@ModelHandle@UIGT@Coherent@@QEBA?AUPropertyHandle@23@PEBD@Z"
             );
 
         HMODULE hInput = GetRMDModule("input");
-        InputManager_ppInstance = (void**) GetProcAddress (
+        DSM_InputManager_ppInstance = (void**) GetProcAddress (
             hInput,
             "?sm_pInstance@InputManager@input@@0PEAV12@EA"
         );
-        InputManager_IsMenuOn = (_InputManager_IsMenuOn) GetProcAddress (
+        DSM_InputManager_IsMenuOn = (_DSM_InputManager_IsMenuOn) GetProcAddress (
             hInput,
             "?isMenuOn@InputManager@input@@QEAA_NXZ"
         );
@@ -372,14 +369,14 @@ namespace DualsenseMod {
         _LOG("OnGameEvent_Internal at %p",
             OnGameEvent_Internal.GetUIntPtr()
         );
-        _LOG("ModelHandle_GetPropertyHandle at %p",
-            ModelHandle_GetPropertyHandle
+        _LOG("DSM_ModelHandle_GetPropertyHandle at %p",
+            DSM_ModelHandle_GetPropertyHandle
         );
         _LOG("InputManager_pInstance at %p",
-            InputManager_ppInstance
+            DSM_InputManager_ppInstance
         );
-        _LOG("InputManager_IsMenuOn at %p",
-            InputManager_IsMenuOn
+        _LOG("DSM_InputManager_IsMenuOn at %p",
+            DSM_InputManager_IsMenuOn
         );
         _LOG("InputManager_IsGameOn at %p",
             InputManager_IsGameOn
@@ -391,14 +388,14 @@ namespace DualsenseMod {
             InputManager_SetMenu_Internal
         );
 
-        if (!ModelHandle_GetPropertyHandle || !InputManager_ppInstance || !InputManager_IsMenuOn || !InputManager_IsGameOn || !InputManager_SetGame_Internal || !InputManager_SetMenu_Internal)
+        if (!DSM_ModelHandle_GetPropertyHandle || !DSM_InputManager_ppInstance || !DSM_InputManager_IsMenuOn || !InputManager_IsGameOn || !InputManager_SetGame_Internal || !InputManager_SetMenu_Internal)
             return false;
 
         return true;
     }
 
     void setAdaptiveTriggersForCurrrentWeapon();
-    void Loadout_TypeRegistration_Hook(void *arg1, void *loadoutModelObject) {
+    void DSM_Loadout_TypeRegistration_Hook(void *arg1, void *loadoutModelObject) {
         if (!g_loadoutModelHandle) {
             g_loadoutModelHandle =
                     (ModelHandle *) ((char *)loadoutModelObject - 0x18);
@@ -407,14 +404,14 @@ namespace DualsenseMod {
             _LOG("Main thread id: %d", threadId);
             mainThread = threadId;
         }
-        Loadout_TypeRegistration_Original(arg1, loadoutModelObject);
+        DSM_Loadout_TypeRegistration_Original(arg1, loadoutModelObject);
     }
 
     void* getModelProperty(const char* propertyName) {
         if (!g_loadoutModelHandle)
             return nullptr;
         char arg2[0x20];
-        auto propertyHandle = ModelHandle_GetPropertyHandle (
+        auto propertyHandle = DSM_ModelHandle_GetPropertyHandle (
             g_loadoutModelHandle,
             arg2,
             propertyName
@@ -515,12 +512,12 @@ namespace DualsenseMod {
     void OnGameEvent_Hook(void* entityComponentState, char *eventMessage) {
         OnGameEvent_Original(entityComponentState, eventMessage);
         _LOGD("in OnGameEvent hook! - event message: \"%s\"", eventMessage);
-        bool isGameOn = InputManager_IsGameOn(*InputManager_ppInstance);
+        bool isGameOn = InputManager_IsGameOn(*DSM_InputManager_ppInstance);
         if (!isGameOn) {
             _LOGD("We are NOT on a Game screen, just skipping...");
             return;
         }
-        bool isMenuOn = InputManager_IsMenuOn(*InputManager_ppInstance);
+        bool isMenuOn = DSM_InputManager_IsMenuOn(*DSM_InputManager_ppInstance);
         if (isMenuOn) {
             _LOGD("We are on a menu screen, just skipping...");
             return;
@@ -566,7 +563,7 @@ namespace DualsenseMod {
             resetAdaptiveTriggers();
             return;
         }
-        bool isGameOn = InputManager_IsGameOn(*InputManager_ppInstance);
+        bool isGameOn = InputManager_IsGameOn(*DSM_InputManager_ppInstance);
         if (isGameOn) {
             _LOGD(" * (in game again!) turn on adaptive triggers!");
             replayLatestAdaptiveTriggers();
@@ -578,11 +575,11 @@ namespace DualsenseMod {
         // Hook loadout type registration to obtain pointer to the model handle
         MH_Initialize();
         MH_CreateHook (
-            Loadout_TypeRegistration_Internal,
-            Loadout_TypeRegistration_Hook,
-            reinterpret_cast<LPVOID *>(&Loadout_TypeRegistration_Original)
+            DSM_Loadout_TypeRegistration_Internal,
+            DSM_Loadout_TypeRegistration_Hook,
+            reinterpret_cast<LPVOID *>(&DSM_Loadout_TypeRegistration_Original)
         );
-        if (MH_EnableHook(Loadout_TypeRegistration_Internal) != MH_OK) {
+        if (MH_EnableHook(DSM_Loadout_TypeRegistration_Internal) != MH_OK) {
             _LOG("FATAL: Failed to install hook.");
             return false;
         }
@@ -650,12 +647,12 @@ namespace DualsenseMod {
         while (true) {
             std::this_thread::sleep_for(std::chrono::seconds(30));
 
-            bool isGameOn = InputManager_IsGameOn(*InputManager_ppInstance);
+            bool isGameOn = InputManager_IsGameOn(*DSM_InputManager_ppInstance);
             if (!isGameOn) {
                 _LOGD("We are NOT on a Game screen, just skipping...");
                 continue;
             }
-            bool isMenuOn = InputManager_IsMenuOn(*InputManager_ppInstance);
+            bool isMenuOn = DSM_InputManager_IsMenuOn(*DSM_InputManager_ppInstance);
             if (isMenuOn) {
                 _LOGD("We are on a menu screen, just skipping...");
                 continue;
@@ -665,15 +662,6 @@ namespace DualsenseMod {
     }
 
     void Init() {
-#if 0
-        char logPath[MAX_PATH];
-        if (SUCCEEDED (
-                SHGetFolderPathA(NULL, CSIDL_LOCAL_APPDATA, NULL, NULL, logPath)
-            )) {
-            strcat_s(logPath, "\\Remedy\\Control\\WeaponSwitch.log");
-            g_logger.Open(logPath);
-        }
-#endif
         // this should be first in order to be able to log
         g_logger.Open("./plugins/modlog.log");
         _LOG("DualsenseMod v1.0 by Thanos Petsas (SkyExplosionist)");
@@ -701,10 +689,6 @@ namespace DualsenseMod {
         InitTriggerSettings();
 
         ApplyHooks();
-
-        // Disable the savegame call that happens when equipping weapons as this causes stutter and player may switch weapons often
-        unsigned char data[] = { 0x90, 0x90, 0x90, 0x90, 0x90, 0x90 };
-        Utils::WriteMemory(OnWeaponEquipped_SaveGame_Addr.GetUIntPtr(), data, sizeof(data));
 
         CreateThread(NULL, 0, SendHearbeatToDSX, NULL, 0, NULL);
 
