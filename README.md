@@ -18,7 +18,12 @@ This mod allows players with a Playstation 5 Dualsense controller to play Contro
 
 ### Mod Showcase
 
-(**TODO:** Add link with video on Youtube)
+<a href="https://www.youtube.com/watch?v=ubN_qF-uWRU">
+    <img src="https://github.com/user-attachments/assets/ba60759b-e5c1-421c-ac23-d36a8a7841b0"
+        width="600"
+        title="Control Ultimate Edition DualSense Mod Showcase — Click to watch it!"
+    />
+</a>
 
 ## Features
 
