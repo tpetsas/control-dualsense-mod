@@ -98,10 +98,10 @@ version=2.5
 
 In this configuration, the `debug=true` option of the `[app]` section will make the mod to output a lot more information to its respective log file (`plugins\modlog.log`), while the `version=2.5` option of the `[dsx]` section will enable the legacy DSX version adaptive triggers. The default values of the above options (i.e., if no INI file is used) are `debug=false` & `vertion=3.1`.
 
-**TODO:**
-- Add issues instructions
-- Link Discord channel of DSX
+## Issues
 
+Please report any bugs or flaws! Feel free to open an issue [here](https://github.com/tpetsas/control-dualsense-mod/issues) on github or
+reach out to the official DSX Discord Server: [![DSXDiscord](https://img.shields.io/discord/836790685784211486?logo=discord&label=DSX%20Discord)](https://discord.gg/PUThpCFByn), at the [dsx-mods](https://discord.com/channels/836790685784211486/1108637673100414977) channel!
 
 ## Credits
 
