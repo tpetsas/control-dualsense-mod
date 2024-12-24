@@ -1,3 +1,8 @@
+/*
+ * Copyright (C) 2024 Thanasis Petsas <thanpetsas@gmail.com>
+ * Licence: MIT Licence
+ */
+
 #include "Config.h"
 #include "Logger.h"
 #include <windows.h>
