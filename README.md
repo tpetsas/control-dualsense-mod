@@ -1,5 +1,5 @@
 # control-dualsense-mod
-A mod for Control Ultimate Edition that adds Dualsense adaptive trigger settings for all Service Weapon forms
+A mod for Control Ultimate Edition that adds DualSense adaptive trigger settings for all Service Weapon forms
 
 Built with the tools and technologies:
 
@@ -14,7 +14,7 @@ Built with the tools and technologies:
 
 ## Overview
 
-This mod allows players with a Playstation 5 Dualsense controller to play Control Ultimate Edition with adaptive triggers. The adaptive triggers are assigned based on the current weapon form.
+This mod allows players with a Playstation 5 DualSense controller to play Control Ultimate Edition with adaptive triggers. The adaptive triggers are assigned based on the current weapon form.
 
 ### Mod Showcase
 
@@ -100,7 +100,7 @@ In this configuration, the `debug=true` option of the `[app]` section will make 
 
 ## Issues
 
-Please report any bugs or flaws! Feel free to open an issue [here](https://github.com/tpetsas/control-dualsense-mod/issues) on github or
+Please report any bugs or flaws! I recommend to grab a debug version of the mod and enable the debug option in the configuration as described above ([Configuration](#Configuration)) in order to get a fully verbose log when trying to replicate the issue, which will help me a lot with debugging the issue. Feel free to open an issue [here](https://github.com/tpetsas/control-dualsense-mod/issues) on github or
 reach out to the official DSX Discord Server: [![DSXDiscord](https://img.shields.io/discord/836790685784211486?logo=discord&label=DSX%20Discord)](https://discord.gg/PUThpCFByn), at the [dsx-mods](https://discord.com/channels/836790685784211486/1108637673100414977) channel!
 
 ## Credits
