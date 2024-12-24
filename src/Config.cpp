@@ -33,7 +33,7 @@ Config::Config (const char *iniPath) {
 
 void Config::print() {
     _LOG("Config: [debug mode: %s] [DSX legacy version: %s]",
-        isDebugMode ? "true" : "flase",
+        isDebugMode ? "true" : "false",
         isDSXVersion2 ? "true" : "false"
     );
 }

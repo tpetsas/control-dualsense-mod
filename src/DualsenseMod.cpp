@@ -151,7 +151,7 @@ void SendTriggers(std::string weaponType) {
         _LOG("DSX++ client failed to send data!");
         return;
     }
-    _LOG("Adaptive Trigger settings sent successfully!");
+    _LOGD("Adaptive Trigger settings sent successfully!");
 }
 
 // Game global vars
@@ -166,8 +166,6 @@ using _Loadout_TypeRegistration =
 using _AppEventHandler =
                     bool(*)(void* EventHandler_self, void* evt);
 using _InputManager_IsMenuOn =
-                    bool(*)(void* inputManager);
-using _InputManager_IsLoadingOn =
                     bool(*)(void* inputManager);
 using _InputManager_IsGameOn =
                     bool(*)(void* inputManager);
@@ -282,8 +280,6 @@ void** InputManager_ppInstance = nullptr;
 // from input, to determine whether a menu
 // (e.g. inventory / conversation / fast travel) is active
 _InputManager_IsMenuOn InputManager_IsMenuOn = nullptr;
-// to skip equip weapon events when we are on a loading screen
-_InputManager_IsLoadingOn InputManager_IsLoadingOn = nullptr;
 // to skip equip weapon events when we are on a non-game screen
 _InputManager_IsGameOn InputManager_IsGameOn = nullptr;
 // to turn off adaptive triggers when not in game
@@ -355,10 +351,6 @@ namespace DualsenseMod {
             hInput,
             "?isMenuOn@InputManager@input@@QEAA_NXZ"
         );
-        InputManager_IsLoadingOn = (_InputManager_IsMenuOn) GetProcAddress (
-            hInput,
-            "?isLoadingOn@InputManager@input@@QEAA_NXZ"
-        );
         InputManager_IsGameOn = (_InputManager_IsGameOn) GetProcAddress (
             hInput,
             "?isGameOn@InputManager@input@@QEAA_NXZ"
@@ -389,9 +381,6 @@ namespace DualsenseMod {
         _LOG("InputManager_IsMenuOn at %p",
             InputManager_IsMenuOn
         );
-        _LOG("InputManager_IsLoadingOn at %p",
-            InputManager_IsLoadingOn
-        );
         _LOG("InputManager_IsGameOn at %p",
             InputManager_IsGameOn
         );
@@ -402,7 +391,7 @@ namespace DualsenseMod {
             InputManager_SetMenu_Internal
         );
 
-        if (!ModelHandle_GetPropertyHandle || !InputManager_ppInstance || !InputManager_IsMenuOn || !InputManager_IsLoadingOn || !InputManager_IsGameOn || !InputManager_SetGame_Internal || !InputManager_SetMenu_Internal)
+        if (!ModelHandle_GetPropertyHandle || !InputManager_ppInstance || !InputManager_IsMenuOn || !InputManager_IsGameOn || !InputManager_SetGame_Internal || !InputManager_SetMenu_Internal)
             return false;
 
         return true;
@@ -432,7 +421,7 @@ namespace DualsenseMod {
         );
         if (!propertyHandle)
             return nullptr;
-        _LOG("getModelProperty: Computed offset for %s is 0x%x.",
+        _LOGD("getModelProperty: Computed offset for %s is 0x%x.",
             propertyName,
             propertyHandle->fieldProperty->offset
         );
@@ -489,7 +478,7 @@ namespace DualsenseMod {
             _LOG("DSX++ client failed to send data!");
             return;
         }
-        _LOG("Adaptive Triggers reset successfully!");
+        _LOGD("Adaptive Triggers reset successfully!");
     }
 
     void setAdaptiveTriggersForCurrrentWeapon() {
@@ -507,7 +496,7 @@ namespace DualsenseMod {
             _LOGD("* current weapon is null!");
             return;
         }
-        _LOG("* Set adaptive triggers for current weapon: %s", weaponName);
+        _LOGD("* Set adaptive triggers for current weapon: %s", weaponName);
         g_currentWeaponMutex.lock();
         g_currentWeaponName = std::string(weaponName);
         SendTriggers(g_currentWeaponName);
@@ -536,13 +525,6 @@ namespace DualsenseMod {
             _LOGD("We are on a menu screen, just skipping...");
             return;
         }
-#if 0
-        bool isLoadingOn = InputManager_IsLoadingOn(*InputManager_ppInstance);
-        if (isLoadingOn) {
-            _LOGD("We are on a loading screen, just skipping...");
-            return;
-        }
-#endif
         if (eventMessage == nullptr) {
             _LOGD("event message is null!");
             return;
@@ -565,28 +547,28 @@ namespace DualsenseMod {
 
     void InputManager_SetGame_Hook (void* inputManager, bool on) {
         InputManager_SetGame_Original(inputManager, on);
-        _LOG("In InputManager::SetGame hook, on: %s", on ? "true" : "false");
+        _LOGD("In InputManager::SetGame hook, on: %s", on ? "true" : "false");
         if (!on) {
-            _LOG(" * (pause menu) turn off adaptive triggers!");
+            _LOGD(" * (pause menu) turn off adaptive triggers!");
             resetAdaptiveTriggers();
             return;
         }
         // on: enable adaptive triggers again
-        _LOG(" * (in game again!) turn on adaptive triggers!");
+        _LOGD(" * (in game again!) turn on adaptive triggers!");
         replayLatestAdaptiveTriggers();
     }
 
     void InputManager_SetMenu_Hook (void *inputManager, bool on) {
         InputManager_SetMenu_Original(inputManager, on);
-        _LOG("In InputManager::SetMenu hook, on: %s", on ? "true" : "false");
+        _LOGD("In InputManager::SetMenu hook, on: %s", on ? "true" : "false");
         if (on) {
-            _LOG(" * (Player menu) turn off adaptive triggers!");
+            _LOGD(" * (Player menu) turn off adaptive triggers!");
             resetAdaptiveTriggers();
             return;
         }
         bool isGameOn = InputManager_IsGameOn(*InputManager_ppInstance);
         if (isGameOn) {
-            _LOG(" * (in game again!) turn on adaptive triggers!");
+            _LOGD(" * (in game again!) turn on adaptive triggers!");
             replayLatestAdaptiveTriggers();
         }
     }
