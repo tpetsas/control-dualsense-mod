@@ -99,4 +99,6 @@ In this configuration, the `debug=true` option of the `[app]` section will make 
 
 [2kreg] for [Control Plugin Loader] and all the knowledge and examples from all their other Control mods! Thanks! :metal:
 
-[Paliverse](https://github.com/Paliverse) for making [DSX]!
+[Tsuda Kageyu](https://github.com/tsudakageyu), [Michael Maltsev](https://github.com/m417z) & [Andrey Unis](https://github.com/uniskz) for [MinHook](https://github.com/TsudaKageyu/minhook)! :syringe:
+
+[Paliverse](https://github.com/Paliverse) for making [DSX]! :video_game:
