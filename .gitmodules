@@ -1,3 +1,6 @@
 [submodule "src/DSXpp"]
 	path = src/DSXpp
 	url = https://github.com/tpetsas/DSXpp.git
+[submodule "src/dualsense-cpp"]
+	path = src/dualsense-cpp
+	url = https://github.com/tpetsas/dualsense-cpp.git
