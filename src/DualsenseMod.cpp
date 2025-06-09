@@ -11,7 +11,12 @@
 #include "rva/RVA.h"
 #include "minhook/include/MinHook.h"
 
-#include "DSX++.h"
+// headers needed for dualsense-cpp
+#include <dualsense.h>
+#include <IO.h>
+#include <Device.h>
+#include <Helpers.h>
+#include <iostream>
 
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -25,21 +30,21 @@
 #include <thread>
 #include <chrono>
 #include <mutex>
+#include <map>
 
 #define INI_LOCATION "./plugins/dualsense-mod.ini"
 
 struct TriggerSetting {
-    TriggerMode mode;
+    TriggerProfile profile;
     bool isCustomTrigger = false;
-    CustomTriggerValueMode customMode = OFF;
-    std::vector<int> extras;
+    TriggerMode mode = TriggerMode::Off;
+    std::vector<uint8_t> extras;
 
-    TriggerSetting(TriggerMode mode, std::vector<int> extras) :
-        mode(mode), extras(extras) {}
+    TriggerSetting(TriggerProfile profile, std::vector<uint8_t> extras) :
+        profile(profile), extras(extras) {}
 
-    TriggerSetting(CustomTriggerValueMode customMode, std::vector<int> extras) :
-        customMode(customMode), extras(extras), isCustomTrigger(true),
-        mode(CustomTriggerValue) {}
+    TriggerSetting(TriggerMode mode, std::vector<uint8_t> extras) :
+        mode(mode), extras(extras), isCustomTrigger(true) {}
 
 };
 
@@ -77,36 +82,45 @@ void InitTriggerSettings() {
         {
             "WEAPON_PISTOL_DEFAULT", // Grip
             {
-                .L2 = new TriggerSetting(Choppy, {}),
-                .R2 = new TriggerSetting(Soft, {}),
+                .L2 = new TriggerSetting(TriggerProfile::Choppy, {}),
+                .R2 = new TriggerSetting(TriggerProfile::Soft, {})
             }
         },
         {
             "WEAPON_SHOTGUN_SINGLESHOT", // Shatter
             {
                 .L2 = new TriggerSetting (
-                        RigidA,
-                        {60, 71, 56, 128, 195, 210, 256}
+                        TriggerMode::Rigid_A,
+                        {60, 71, 56, 128, 195, 210, 255}
                 ),
-                .R2 = new TriggerSetting(Hardest, {})
+                .R2 = new TriggerSetting (
+                        TriggerProfile::SlopeFeedback,
+                        {0, 5, 1, 8}
+                )
             }
         },
         {
             "WEAPON_SMG_STANDARD", // Spin
             {
                 .L2 = new TriggerSetting (
-                        RigidA,
+                        TriggerMode::Rigid_A,
                         {71, 96, 128, 128, 128, 128, 128}
                 ),
-                .R2 = new TriggerSetting(Vibration, {3, 4, 14})
+                .R2 = new TriggerSetting(
+                        TriggerProfile::Vibration,
+                        {3, 4, 14}
+                )
             }
         },
         {
             "WEAPON_RAILGUN_STANDARD", // Pierce
             {
-                .L2 = new TriggerSetting(Machine, {1, 8, 3, 3, 184}),
+                .L2 = new TriggerSetting (
+                        TriggerProfile::Machine,
+                        {1, 8, 3, 3, 184, 0}
+                ),
                 .R2 = new TriggerSetting (
-                        VibrateResistanceB,
+                        TriggerMode::Pulse_B,
                         {238, 215, 66, 120, 43, 160, 215}
                 )
             }
@@ -114,13 +128,9 @@ void InitTriggerSettings() {
         {
             "WEAPON_ROCKETLAUNCHER_TRIPLESHOT", // Charge
             {
-                //.L2 = new TriggerSetting(Rigid, {}),
-                .L2 = new TriggerSetting (
-                        RigidA,
-                        {209, 42, 232, 192, 232, 209, 232}
-                ),
+                .L2 = new TriggerSetting(TriggerMode::Rigid, {}),
                 .R2 = new TriggerSetting (
-                        RigidA,
+                        TriggerMode::Rigid_A,
                         {209, 42, 232, 192, 232, 209, 232}
                 )
             }
@@ -128,34 +138,26 @@ void InitTriggerSettings() {
         {
             "WEAPON_DLC2_STICKYLAUNCHER", // Surge
             {
-                .L2 = new TriggerSetting(Feedback, {3, 3}),
-                .R2 = new TriggerSetting(VeryHard, {})
+                .L2 = new TriggerSetting(TriggerProfile::Feedback, {3, 3}),
+                .R2 = new TriggerSetting(TriggerProfile::VeryHard, {})
             }
         }
     };
-
-    if (g_config.isDSXVersion2) {
-        g_TriggerSettings["WEAPON_SMG_STANDARD"].R2 =
-            new TriggerSetting(AutomaticGun, {1, 7, 6}); // Spin
-        g_TriggerSettings["WEAPON_DLC2_STICKYLAUNCHER"].L2 =
-            new TriggerSetting(Rigid, {}); // Surge
-    }
 }
 
 void SendTriggers(std::string weaponType) {
     Triggers t = g_TriggerSettings[weaponType];
     if (t.L2->isCustomTrigger)
-        DSX::setLeftCustomTrigger (t.L2->customMode, t.L2->extras);
+        dualsense::setLeftCustomTrigger(t.L2->mode, t.L2->extras);
     else
-        DSX::setLeftTrigger (t.L2->mode, t.L2->extras);
+        dualsense::setLeftTrigger (t.L2->profile, t.L2->extras);
     if (t.R2->isCustomTrigger)
-        DSX::setRightCustomTrigger (t.R2->customMode, t.R2->extras);
+        dualsense::setRightCustomTrigger(t.R2->mode, t.R2->extras);
     else
-        DSX::setRightTrigger (t.R2->mode, t.R2->extras);
-    if (DSX::sendPayload() != DSX::Success) {
-        _LOG("DSX++ client failed to send data!");
-        return;
-    }
+        dualsense::setRightTrigger (t.R2->profile, t.R2->extras);
+    // TODO: add logging here if something goes wrong
+    dualsense::ensureConnected();
+    dualsense::sendState();
     _LOGD("Adaptive Trigger settings sent successfully!");
 }
 
@@ -472,14 +474,11 @@ namespace DualsenseMod {
     }
 
     void resetAdaptiveTriggers() {
-        // TODO: do that in a separate thread to aboid stuttering
+        // TODO: do that in a separate thread to avoid stuttering
         // reset triggers to Normal mode
-        DSX::setLeftTrigger (Normal);
-        DSX::setRightTrigger (Normal);
-        if (DSX::sendPayload() != DSX::Success) {
-            _LOG("DSX++ client failed to send data!");
-            return;
-        }
+        dualsense::setLeftTrigger(TriggerProfile::Normal);
+        dualsense::setRightTrigger(TriggerProfile::Normal);
+        dualsense::sendState();
         _LOGD("Adaptive Triggers reset successfully!");
     }
 
@@ -645,6 +644,7 @@ namespace DualsenseMod {
         return true;
     }
 
+#if 0
     // we need to spin up a thread and replay the latest adaptive triggers
     // settings every 30 seconds, otherwise the DSX settings will get lost
     // if the player stays idle for a while
@@ -665,7 +665,7 @@ namespace DualsenseMod {
             replayLatestAdaptiveTriggers();
         }
     }
-
+#endif
     void Init() {
         // this should be first in order to be able to log
         g_logger.Open("./plugins/modlog.log");
@@ -695,13 +695,17 @@ namespace DualsenseMod {
 
         ApplyHooks();
 
-        CreateThread(NULL, 0, SendHearbeatToDSX, NULL, 0, NULL);
+        //CreateThread(NULL, 0, SendHearbeatToDSX, NULL, 0, NULL);
+        dualsense::init();
+        dualsense::ensureConnected();
 
-        if ( DSX::init() != DSX::Success ) {
-            _LOG("DSX++ client failed to initialize!");
+        // TODO: perhaps retry logic here or spin up a thread that does that
+        if (!dualsense::isConnected()) {
+            _LOG("dualsense-cpp failed to initialize!");
             return;
         }
-        _LOG("DSX++ client initialized successfully!");
+
+        _LOG("dualsense-cpp initialized successfully!");
 
         _LOG("Ready.");
     }
