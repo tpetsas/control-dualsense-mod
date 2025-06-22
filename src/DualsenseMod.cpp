@@ -12,6 +12,7 @@
 #include "minhook/include/MinHook.h"
 
 // headers needed for dualsense-cpp
+#include <udp.h>
 #include <dualsense.h>
 #include <IO.h>
 #include <Device.h>
@@ -33,6 +34,103 @@
 #include <map>
 
 #define INI_LOCATION "./plugins/dualsense-mod.ini"
+
+// TODO: move the following to a server utils file
+
+PROCESS_INFORMATION serverProcInfo;
+
+
+#include <shellapi.h>
+
+bool launchServerElevated(const std::wstring& exePath = L"./plugins/dualsense-service.exe") {
+    wchar_t fullExePath[MAX_PATH];
+    if (!GetFullPathNameW(exePath.c_str(), MAX_PATH, fullExePath, nullptr)) {
+        _LOG("Failed to resolve full path");
+        return false;
+    }
+
+    SHELLEXECUTEINFOW sei = { sizeof(sei) };
+    sei.lpVerb = L"runas";
+    sei.lpFile = fullExePath;
+    sei.nShow = SW_HIDE;
+    sei.fMask = SEE_MASK_NO_CONSOLE;
+
+    if (!ShellExecuteExW(&sei)) {
+        DWORD err = GetLastError();
+        _LOG("ShellExecuteEx failed: %lu", err);
+        return false;
+    }
+
+    return true;
+}
+
+bool launchServer(PROCESS_INFORMATION& outProcInfo, const std::wstring& exePath = L"./plugins/dualsense-service.exe") {
+    STARTUPINFOW si = { sizeof(si) };
+    ZeroMemory(&outProcInfo, sizeof(outProcInfo));
+
+    //TODO: add check here for checking if the exe exists!
+
+    BOOL success = CreateProcessW(
+        exePath.c_str(),
+        nullptr,
+        nullptr,
+        nullptr,
+        FALSE,
+        DETACHED_PROCESS,
+        nullptr,
+        nullptr,
+        &si,
+        &outProcInfo
+    );
+
+    if (!success) {
+        _LOG("Failed to launch server.exe. Error: %s\n", GetLastError());
+        return false;
+    }
+
+    // You can close thread handle immediately; we keep process handle
+    CloseHandle(outProcInfo.hThread);
+    return true;
+}
+
+
+bool terminateServer(PROCESS_INFORMATION& procInfo) {
+    if (procInfo.hProcess != nullptr) {
+        BOOL result = TerminateProcess(procInfo.hProcess, 0); // 0 = exit code
+        CloseHandle(procInfo.hProcess);
+        procInfo.hProcess = nullptr;
+        return result == TRUE;
+    }
+    return false;
+}
+
+
+void logLastError(const char* context) {
+    DWORD errorCode = GetLastError();
+    wchar_t* msgBuf = nullptr;
+
+    FormatMessageW(
+        FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+        nullptr,
+        errorCode,
+        0,
+        (LPWSTR)&msgBuf,
+        0,
+        nullptr
+    );
+
+    // Convert wchar_t* msgBuf to char*
+    char narrowBuf[1024] = {};
+    if (msgBuf) {
+        WideCharToMultiByte(CP_UTF8, 0, msgBuf, -1, narrowBuf, sizeof(narrowBuf) - 1, nullptr, nullptr);
+    }
+
+    _LOG("[ERROR] %s failed (code %lu): %s", context, errorCode, msgBuf ? narrowBuf : "(Unknown error)");
+
+    if (msgBuf) {
+        LocalFree(msgBuf);
+    }
+}
 
 struct TriggerSetting {
     TriggerProfile profile;
@@ -147,6 +245,7 @@ void InitTriggerSettings() {
 
 void SendTriggers(std::string weaponType) {
     Triggers t = g_TriggerSettings[weaponType];
+#if 1
     if (t.L2->isCustomTrigger)
         dualsense::setLeftCustomTrigger(t.L2->mode, t.L2->extras);
     else
@@ -155,9 +254,7 @@ void SendTriggers(std::string weaponType) {
         dualsense::setRightCustomTrigger(t.R2->mode, t.R2->extras);
     else
         dualsense::setRightTrigger (t.R2->profile, t.R2->extras);
-    // TODO: add logging here if something goes wrong
-    dualsense::ensureConnected();
-    dualsense::sendState();
+#endif
     _LOGD("Adaptive Trigger settings sent successfully!");
 }
 
@@ -474,11 +571,13 @@ namespace DualsenseMod {
     }
 
     void resetAdaptiveTriggers() {
+#if 1
         // TODO: do that in a separate thread to avoid stuttering
         // reset triggers to Normal mode
         dualsense::setLeftTrigger(TriggerProfile::Normal);
         dualsense::setRightTrigger(TriggerProfile::Normal);
-        dualsense::sendState();
+        //dualsense::sendState();
+#endif
         _LOGD("Adaptive Triggers reset successfully!");
     }
 
@@ -578,6 +677,7 @@ namespace DualsenseMod {
         _LOG("Applying hooks...");
         // Hook loadout type registration to obtain pointer to the model handle
         MH_Initialize();
+
         MH_CreateHook (
             DSM_Loadout_TypeRegistration_Internal,
             DSM_Loadout_TypeRegistration_Hook,
@@ -598,7 +698,6 @@ namespace DualsenseMod {
             _LOG("FATAL: Failed to install OnGameEvent hook.");
             return false;
         }
-
 
         // Hook
         MH_CreateHook (
@@ -623,6 +722,7 @@ namespace DualsenseMod {
         }
 
         _LOG("Hooks applied successfully!");
+
         return true;
     }
 
@@ -644,30 +744,24 @@ namespace DualsenseMod {
         return true;
     }
 
-#if 0
-    // we need to spin up a thread and replay the latest adaptive triggers
-    // settings every 30 seconds, otherwise the DSX settings will get lost
-    // if the player stays idle for a while
-    DWORD WINAPI SendHearbeatToDSX(LPVOID lpParam) {
-        while (true) {
-            std::this_thread::sleep_for(std::chrono::seconds(30));
 
-            bool isGameOn = InputManager_IsGameOn(*DSM_InputManager_ppInstance);
-            if (!isGameOn) {
-                _LOGD("We are NOT on a Game screen, just skipping...");
-                continue;
-            }
-            bool isMenuOn = DSM_InputManager_IsMenuOn(*DSM_InputManager_ppInstance);
-            if (isMenuOn) {
-                _LOGD("We are on a menu screen, just skipping...");
-                continue;
-            }
-            replayLatestAdaptiveTriggers();
-        }
-    }
-#endif
+#define DEVICE_ENUM_INFO_SZ 16
+#define CONTROLLER_LIMIT 16
+std::string wstring_to_utf8(const std::wstring& ws) {
+    int len = WideCharToMultiByte(CP_UTF8, 0, ws.c_str(), -1,
+                                   nullptr, 0, nullptr, nullptr);
+    std::string s(len, 0);
+    WideCharToMultiByte (
+            CP_UTF8, 0, ws.c_str(), -1, &s[0], len, nullptr, nullptr
+    );
+    s.resize(len - 1);
+    return s;
+}
+
+    constexpr int MAX_ATTEMPTS = 5;
+    constexpr int RETRY_DELAY_MS = 2000;
+
     void Init() {
-        // this should be first in order to be able to log
         g_logger.Open("./plugins/modlog.log");
         _LOG("DualsenseMod v1.0 by Thanos Petsas (SkyExplosionist)");
         _LOG("Game version: %" PRIX64, Utils::GetGameVersion());
@@ -695,17 +789,27 @@ namespace DualsenseMod {
 
         ApplyHooks();
 
-        //CreateThread(NULL, 0, SendHearbeatToDSX, NULL, 0, NULL);
-        dualsense::init();
-        dualsense::ensureConnected();
 
-        // TODO: perhaps retry logic here or spin up a thread that does that
-        if (!dualsense::isConnected()) {
-            _LOG("dualsense-cpp failed to initialize!");
-            return;
+        CreateThread(nullptr, 0, [](LPVOID) -> DWORD {
+            //EnableSteamInput(true);
+            std::this_thread::sleep_for(std::chrono::seconds(2)); // Give server time to start
+#if 1
+            _LOG("Client starting server process...\n");
+            //if (!launchServer(serverProcInfo)) {
+            if (!launchServerElevated()) {
+                _LOG("Error launching the server...\n");
+                return 1;
+            }
+#endif
+            std::this_thread::sleep_for(std::chrono::seconds(2)); // Give server time to start
+            return 0;
+        }, nullptr, 0, nullptr);
+
+
+        auto status = dualsense::init(AgentMode::CLIENT);
+        if (status != dualsense::Status::Ok) {
+            _LOG("Failed to initialize DualSense in CLIENT mode, status: %d", static_cast<std::underlying_type<dualsense::Status>::type>(status));
         }
-
-        _LOG("dualsense-cpp initialized successfully!");
 
         _LOG("Ready.");
     }

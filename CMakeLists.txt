@@ -6,18 +6,6 @@ project(control-dualsense-mod)
 # Set the DLL output directory
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 
-set(DSXPP_SRC "${CMAKE_CURRENT_LIST_DIR}/src/DSXpp/src")
-
-if (NOT EXISTS "${DSXPP_SRC}/UDPClient.cpp" OR
-    NOT EXISTS "${DSXPP_SRC}/DSX++.cpp"
-)
-    message(FATAL_ERROR,
-            "Error: DSX++ source code not found"
-            "make sure to init submodules first through:"
-            "git submodule update --init --recursive"
-    )
-endif()
-
 set(DUALSENSECPP_ROOT "${CMAKE_CURRENT_LIST_DIR}/src/dualsense-cpp")
 
 if (NOT EXISTS "${DUALSENSECPP_ROOT}/src/dualsense.cpp")
@@ -53,8 +41,6 @@ target_link_libraries(dualsense-cpp
     cfgmgr32
 )
 
-add_definitions(-DDSX_V3)
-include_directories(${DSXPP_SRC})
 include_directories(${DUALSENSECPP_ROOT})
 
 
@@ -73,9 +59,19 @@ add_library(dualsense-mod SHARED
     src/rva/sscan/Pattern.cpp
 )
 
-add_library(DSX++ STATIC
-    ${DSXPP_SRC}/UDPClient.cpp
-    ${DSXPP_SRC}/DSX++.cpp
+
+target_link_libraries(dualsense-mod PRIVATE dualsense-cpp)
+
+add_executable(dualsense-service ${DUALSENSECPP_ROOT}/test/server/main.cpp)
+
+# Mark as Windows GUI app to suppress console window
+set_target_properties(dualsense-service PROPERTIES
+    WIN32_EXECUTABLE TRUE
 )
 
-target_link_libraries(dualsense-mod PRIVATE DSX++ dualsense-cpp)
+target_include_directories(dualsense-service PRIVATE
+    ${PROJECT_SOURCE_DIR}/include
+)
+
+target_link_libraries(dualsense-service PRIVATE dualsense-cpp)
+
