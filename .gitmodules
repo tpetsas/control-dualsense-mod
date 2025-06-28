@@ -1,0 +1,3 @@
+[submodule "src/dualsensitive"]
+	path = src/dualsensitive
+	url = git@github.com-personal:tpetsas/dualsensitive.git

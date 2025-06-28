@@ -6,42 +6,44 @@ project(control-dualsense-mod)
 # Set the DLL output directory
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 
-set(DUALSENSECPP_ROOT "${CMAKE_CURRENT_LIST_DIR}/src/dualsense-cpp")
+set(DUALSENSITIVE_ROOT "${CMAKE_CURRENT_LIST_DIR}/src/dualsensitive")
 
-if (NOT EXISTS "${DUALSENSECPP_ROOT}/src/dualsense.cpp")
+if (NOT EXISTS "${DUALSENSITIVE_ROOT}/src/dualsensitive.cpp")
     message(FATAL_ERROR,
-            " Error: dualsense-cpp source code not found; "
+            " Error: dualsensitive source code not found; "
             "make sure to init submodules first through: "
             "git submodule update --init --recursive"
     )
-    message("${CMAKE_CURRENT_LIST_DIR}/src/dualsence-cpp/src/dualsense.cpp")
+    message("${CMAKE_CURRENT_LIST_DIR}/src/dualsence-cpp/src/dualsensitive.cpp")
 endif()
-include_directories(${DUALSENSECPP_ROOT})
+include_directories(${DUALSENSITIVE_ROOT})
 
-file(GLOB_RECURSE DUALSENSECPP_SOURCE_FILES
-    ${DUALSENSECPP_ROOT}/src/*.cpp
-    ${DUALSENSECPP_ROOT}/src/*.h
+file(GLOB_RECURSE DUALSENSITIVE_SOURCE_FILES
+    ${DUALSENSITIVE_ROOT}/src/core/*.cpp
+    ${DUALSENSITIVE_ROOT}/src/core/udp/*.cpp
+    ${DUALSENSITIVE_ROOT}/src/dualsensitive.cpp
 )
 
 # Create the static lib
-add_library(dualsense-cpp STATIC ${DUALSENSECPP_SOURCE_FILES})
+add_library(dualsensitive STATIC ${DUALSENSITIVE_SOURCE_FILES})
 
-target_include_directories(dualsense-cpp PUBLIC
-    ${DUALSENSECPP_ROOT}/src
-    ${DUALSENSECPP_ROOT}/include
+target_include_directories(dualsensitive PUBLIC
+    ${DUALSENSITIVE_ROOT}/src/core
+    ${DUALSENSITIVE_ROOT}/src/core/udp
+    ${DUALSENSITIVE_ROOT}/include
 )
 
 # to avoid dllimport conflicts
-target_compile_definitions(dualsense-cpp PUBLIC DS5W_BUILD_LIB)
+target_compile_definitions(dualsensitive PUBLIC DS5W_BUILD_LIB)
 
 # link necessary Windows libs
-target_link_libraries(dualsense-cpp
+target_link_libraries(dualsensitive
     setupapi
     hid
     cfgmgr32
 )
 
-include_directories(${DUALSENSECPP_ROOT})
+include_directories(${DUALSENSITIVE_ROOT})
 
 
 # Add the source files, including dllmain.cpp
@@ -60,18 +62,18 @@ add_library(dualsense-mod SHARED
 )
 
 
-target_link_libraries(dualsense-mod PRIVATE dualsense-cpp)
+target_link_libraries(dualsense-mod PRIVATE dualsensitive)
 
-add_executable(dualsense-service ${DUALSENSECPP_ROOT}/test/server/main.cpp)
+add_executable(dualsensitive-service ${DUALSENSITIVE_ROOT}/src/service/main.cpp)
 
 # Mark as Windows GUI app to suppress console window
-set_target_properties(dualsense-service PROPERTIES
+set_target_properties(dualsensitive-service PROPERTIES
     WIN32_EXECUTABLE TRUE
 )
 
-target_include_directories(dualsense-service PRIVATE
+target_include_directories(dualsensitive-service PRIVATE
     ${PROJECT_SOURCE_DIR}/include
 )
 
-target_link_libraries(dualsense-service PRIVATE dualsense-cpp)
+target_link_libraries(dualsensitive-service PRIVATE dualsensitive)
 

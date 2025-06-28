@@ -11,9 +11,9 @@
 #include "rva/RVA.h"
 #include "minhook/include/MinHook.h"
 
-// headers needed for dualsense-cpp
+// headers needed for dualsensitive
 #include <udp.h>
-#include <dualsense.h>
+#include <dualsensitive.h>
 #include <IO.h>
 #include <Device.h>
 #include <Helpers.h>
@@ -42,7 +42,7 @@ PROCESS_INFORMATION serverProcInfo;
 
 #include <shellapi.h>
 
-bool launchServerElevated(const std::wstring& exePath = L"./plugins/dualsense-service.exe") {
+bool launchServerElevated(const std::wstring& exePath = L"./plugins/dualsensitive-service.exe") {
     wchar_t fullExePath[MAX_PATH];
     if (!GetFullPathNameW(exePath.c_str(), MAX_PATH, fullExePath, nullptr)) {
         _LOG("Failed to resolve full path");
@@ -64,7 +64,7 @@ bool launchServerElevated(const std::wstring& exePath = L"./plugins/dualsense-se
     return true;
 }
 
-bool launchServer(PROCESS_INFORMATION& outProcInfo, const std::wstring& exePath = L"./plugins/dualsense-service.exe") {
+bool launchServer(PROCESS_INFORMATION& outProcInfo, const std::wstring& exePath = L"./plugins/dualsensitive-service.exe") {
     STARTUPINFOW si = { sizeof(si) };
     ZeroMemory(&outProcInfo, sizeof(outProcInfo));
 
@@ -247,13 +247,13 @@ void SendTriggers(std::string weaponType) {
     Triggers t = g_TriggerSettings[weaponType];
 #if 1
     if (t.L2->isCustomTrigger)
-        dualsense::setLeftCustomTrigger(t.L2->mode, t.L2->extras);
+        dualsensitive::setLeftCustomTrigger(t.L2->mode, t.L2->extras);
     else
-        dualsense::setLeftTrigger (t.L2->profile, t.L2->extras);
+        dualsensitive::setLeftTrigger (t.L2->profile, t.L2->extras);
     if (t.R2->isCustomTrigger)
-        dualsense::setRightCustomTrigger(t.R2->mode, t.R2->extras);
+        dualsensitive::setRightCustomTrigger(t.R2->mode, t.R2->extras);
     else
-        dualsense::setRightTrigger (t.R2->profile, t.R2->extras);
+        dualsensitive::setRightTrigger (t.R2->profile, t.R2->extras);
 #endif
     _LOGD("Adaptive Trigger settings sent successfully!");
 }
@@ -574,9 +574,9 @@ namespace DualsenseMod {
 #if 1
         // TODO: do that in a separate thread to avoid stuttering
         // reset triggers to Normal mode
-        dualsense::setLeftTrigger(TriggerProfile::Normal);
-        dualsense::setRightTrigger(TriggerProfile::Normal);
-        //dualsense::sendState();
+        dualsensitive::setLeftTrigger(TriggerProfile::Normal);
+        dualsensitive::setRightTrigger(TriggerProfile::Normal);
+        //dualsensitive::sendState();
 #endif
         _LOGD("Adaptive Triggers reset successfully!");
     }
@@ -806,9 +806,9 @@ std::string wstring_to_utf8(const std::wstring& ws) {
         }, nullptr, 0, nullptr);
 
 
-        auto status = dualsense::init(AgentMode::CLIENT);
-        if (status != dualsense::Status::Ok) {
-            _LOG("Failed to initialize DualSense in CLIENT mode, status: %d", static_cast<std::underlying_type<dualsense::Status>::type>(status));
+        auto status = dualsensitive::init(AgentMode::CLIENT);
+        if (status != dualsensitive::Status::Ok) {
+            _LOG("Failed to initialize DualSensitive in CLIENT mode, status: %d", static_cast<std::underlying_type<dualsensitive::Status>::type>(status));
         }
 
         _LOG("Ready.");
