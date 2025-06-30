@@ -65,6 +65,11 @@ add_library(dualsense-mod SHARED
 target_link_libraries(dualsense-mod PRIVATE dualsensitive)
 
 add_executable(dualsensitive-service ${DUALSENSITIVE_ROOT}/src/service/main.cpp)
+target_sources(dualsensitive-service PRIVATE
+    ${DUALSENSITIVE_ROOT}/src/service/main.cpp
+    ${DUALSENSITIVE_ROOT}/src/service/resources.rc
+    ${DUALSENSITIVE_ROOT}/src/service/resource.h
+)
 
 # Mark as Windows GUI app to suppress console window
 set_target_properties(dualsensitive-service PROPERTIES

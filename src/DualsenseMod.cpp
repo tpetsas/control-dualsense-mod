@@ -403,6 +403,11 @@ ModelHandle* g_loadoutModelHandle = nullptr;
 std::mutex g_currentWeaponMutex;
 std::string g_currentWeaponName;
 
+// This is to make sure that the PID will be sent to the server after
+// the server has started
+std::mutex g_serverLaunchMutex;
+bool g_serverStarted = false;
+
 HMODULE GetRMDModule(const char* modName) {
     char szModuleName[MAX_PATH] = "";
     snprintf(szModuleName, sizeof(szModuleName), "%s_rmdwin7_f.dll", modName);
@@ -789,27 +794,39 @@ std::string wstring_to_utf8(const std::wstring& ws) {
 
         ApplyHooks();
 
-
         CreateThread(nullptr, 0, [](LPVOID) -> DWORD {
-            //EnableSteamInput(true);
-            std::this_thread::sleep_for(std::chrono::seconds(2)); // Give server time to start
-#if 1
-            _LOG("Client starting server process...\n");
-            //if (!launchServer(serverProcInfo)) {
+            _LOG("Client starting DualSensitive Service...\n");
             if (!launchServerElevated()) {
-                _LOG("Error launching the server...\n");
+                _LOG("Error launching the DualSensitive Service...\n");
                 return 1;
             }
-#endif
-            std::this_thread::sleep_for(std::chrono::seconds(2)); // Give server time to start
+            g_serverLaunchMutex.lock();
+            g_serverStarted = true;
+            g_serverLaunchMutex.unlock();
+            _LOG("DualSensitive Service launched successfully...\n");
             return 0;
         }, nullptr, 0, nullptr);
 
 
-        auto status = dualsensitive::init(AgentMode::CLIENT);
-        if (status != dualsensitive::Status::Ok) {
-            _LOG("Failed to initialize DualSensitive in CLIENT mode, status: %d", static_cast<std::underlying_type<dualsensitive::Status>::type>(status));
-        }
+        CreateThread(nullptr, 0, [](LPVOID) -> DWORD {
+            // wait for server to start first
+            do {
+                g_serverLaunchMutex.lock();
+                bool started = g_serverStarted;
+                g_serverLaunchMutex.unlock();
+                if (started) break;
+                std::this_thread::sleep_for(std::chrono::seconds(2));
+            } while (true);
+
+            _LOG("Client starting DualSensitive Service...\n");
+            auto status = dualsensitive::init(AgentMode::CLIENT);
+            if (status != dualsensitive::Status::Ok) {
+                _LOG("Failed to initialize DualSensitive in CLIENT mode, status: %d", static_cast<std::underlying_type<dualsensitive::Status>::type>(status));
+            }
+                _LOG("DualSensitive Service launched successfully...\n");
+            dualsensitive::sendPidToServer();
+            return 0;
+        }, nullptr, 0, nullptr);
 
         _LOG("Ready.");
     }
