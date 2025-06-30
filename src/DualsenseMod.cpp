@@ -576,13 +576,10 @@ namespace DualsenseMod {
     }
 
     void resetAdaptiveTriggers() {
-#if 1
         // TODO: do that in a separate thread to avoid stuttering
         // reset triggers to Normal mode
         dualsensitive::setLeftTrigger(TriggerProfile::Normal);
         dualsensitive::setRightTrigger(TriggerProfile::Normal);
-        //dualsensitive::sendState();
-#endif
         _LOGD("Adaptive Triggers reset successfully!");
     }
 
@@ -767,7 +764,7 @@ std::string wstring_to_utf8(const std::wstring& ws) {
     constexpr int RETRY_DELAY_MS = 2000;
 
     void Init() {
-        g_logger.Open("./plugins/modlog.log");
+        g_logger.Open("./plugins/dualsensemod.log");
         _LOG("DualsenseMod v1.0 by Thanos Petsas (SkyExplosionist)");
         _LOG("Game version: %" PRIX64, Utils::GetGameVersion());
         _LOG("Module base: %p", GetModuleHandle(NULL));
@@ -819,7 +816,7 @@ std::string wstring_to_utf8(const std::wstring& ws) {
             } while (true);
 
             _LOG("Client starting DualSensitive Service...\n");
-            auto status = dualsensitive::init(AgentMode::CLIENT);
+            auto status = dualsensitive::init(AgentMode::CLIENT, "./plugins/duaslensitive-client.log", g_config.isDebugMode);
             if (status != dualsensitive::Status::Ok) {
                 _LOG("Failed to initialize DualSensitive in CLIENT mode, status: %d", static_cast<std::underlying_type<dualsensitive::Status>::type>(status));
             }
