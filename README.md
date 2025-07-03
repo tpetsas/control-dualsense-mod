@@ -44,7 +44,9 @@ This mod requires the following:
 
 ## Installation
 
-**Note:** For the older version of the mod that requires the [DSX] third party app to work, refer to these instructions: [![Control DualSense Mod v1.0.0](https://img.shields.io/badge/control--dualsense--mod-version%201.0.0-red)](https://github.com/tpetsas/control-dualsense-mod/blob/main/README.dsx.md)
+[Control DualSense Mod v1.0.0](https://github.com/tpetsas/control-dualsense-mod/releases/tag/1.0.0)
+
+**Note:** For the older version of the mod ([Control DualSense Mod v1.0.0]) that requires the [DSX] third party app to work, refer to these instructions: [![Control DualSense Mod Old](https://img.shields.io/badge/control--dualsense--mod-version%201.0.0-red)](https://github.com/tpetsas/control-dualsense-mod/blob/main/README.dsx.md)
 
 
 **Todo:** New Instructions here...

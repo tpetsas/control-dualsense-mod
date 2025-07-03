@@ -12,8 +12,10 @@ Built with the tools and technologies:
 [![Ghidra](https://tinyurl.com/yuv64wyh)](https://ghidra-sre.org/)
 [![Radare2](https://tinyurl.com/52tue3ve)](https://rada.re/n/radare2.html)
 
-> [!IMPORTANT]  
-> Note those instructions are applicable only for the first version of the Control DualSense Mod version 1.0.0!
+[Control DualSense Mod v1.0.0](https://github.com/tpetsas/control-dualsense-mod/releases/tag/1.0.0)
+
+> [!IMPORTANT]
+> Note those instructions are applicable only for the first version of the Control DualSense Mod: [Control DualSense Mod v1.0.0]!
 
 <img src="https://github.com/user-attachments/assets/d997ea9b-d3e0-4d07-8688-553caa2e3fd5" alt="dualsense-mod" width="400"/>
 
