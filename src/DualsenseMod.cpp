@@ -245,7 +245,6 @@ void InitTriggerSettings() {
 
 void SendTriggers(std::string weaponType) {
     Triggers t = g_TriggerSettings[weaponType];
-#if 1
     if (t.L2->isCustomTrigger)
         dualsensitive::setLeftCustomTrigger(t.L2->mode, t.L2->extras);
     else
@@ -254,7 +253,6 @@ void SendTriggers(std::string weaponType) {
         dualsensitive::setRightCustomTrigger(t.R2->mode, t.R2->extras);
     else
         dualsensitive::setRightTrigger (t.R2->profile, t.R2->extras);
-#endif
     _LOGD("Adaptive Trigger settings sent successfully!");
 }
 
@@ -407,6 +405,8 @@ std::string g_currentWeaponName;
 // the server has started
 std::mutex g_serverLaunchMutex;
 bool g_serverStarted = false;
+
+bool g_recharging = false;
 
 HMODULE GetRMDModule(const char* modName) {
     char szModuleName[MAX_PATH] = "";
@@ -616,7 +616,6 @@ namespace DualsenseMod {
 
     void OnGameEvent_Hook(void* entityComponentState, char *eventMessage) {
         OnGameEvent_Original(entityComponentState, eventMessage);
-        _LOGD("in OnGameEvent hook! - event message: \"%s\"", eventMessage);
         bool isGameOn = InputManager_IsGameOn(*DSM_InputManager_ppInstance);
         if (!isGameOn) {
             _LOGD("We are NOT on a Game screen, just skipping...");
@@ -633,6 +632,21 @@ namespace DualsenseMod {
         }
         _LOGD("in OnGameEvent hook! - event message: \"%s\"", eventMessage);
 
+        if (!g_recharging && !strcmp(eventMessage, "dry_fire")) {
+            _LOGD("dry_fire found: reset adaptive triggers and enter recharging mode!");
+            resetAdaptiveTriggers();
+            g_recharging = true;
+            return;
+        }
+
+
+        if (g_recharging && !strcmp(eventMessage, "reloading_deficit_exit")) {
+            _LOGD("reloading_deficit_exit found: exit recharging mode!");
+            g_recharging = false;
+            setAdaptiveTriggersForCurrrentWeapon();
+            return;
+        }
+
         // case of entring the game screen for the first time
         if (g_currentWeaponName.empty() &&
                 !strcmp(eventMessage, "unholster_end")) {
@@ -643,7 +657,11 @@ namespace DualsenseMod {
         if (strcmp(eventMessage, "weapon_equipped")) {
             return;
         }
-        setAdaptiveTriggersForCurrrentWeapon();
+
+
+        if (!g_recharging) {
+            setAdaptiveTriggersForCurrrentWeapon();
+        }
     }
 
 
@@ -657,7 +675,9 @@ namespace DualsenseMod {
         }
         // on: enable adaptive triggers again
         _LOGD(" * (in game again!) turn on adaptive triggers!");
-        replayLatestAdaptiveTriggers();
+        if (!g_recharging) {
+            replayLatestAdaptiveTriggers();
+        }
     }
 
     void InputManager_SetMenu_Hook (void *inputManager, bool on) {
@@ -671,7 +691,10 @@ namespace DualsenseMod {
         bool isGameOn = InputManager_IsGameOn(*DSM_InputManager_ppInstance);
         if (isGameOn) {
             _LOGD(" * (in game again!) turn on adaptive triggers!");
-            replayLatestAdaptiveTriggers();
+
+            if (!g_recharging) {
+                setAdaptiveTriggersForCurrrentWeapon();
+            }
         }
     }
 
