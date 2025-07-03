@@ -13,9 +13,6 @@
  * [app]
  * debug=true
  *
- * [dsx]
- * version=2
- *
  */
 
 Config::Config (const char *iniPath) {
@@ -27,18 +24,14 @@ Config::Config (const char *iniPath) {
     if (GetLastError() == ERROR_FILE_NOT_FOUND) {
         _LOG("%s is not an INI file; using config defaults...", iniPath);
         isDebugMode = false;
-        isDSXVersion2 = false;
         return;
     }
 
     memset(value, 0, sizeof(value));
-    GetPrivateProfileStringA("dsx", "version", "3", value, sizeof(value), iniPath);
-    isDSXVersion2 = strncmp(value, "2", 1) == 0;
 }
 
 void Config::print() {
-    _LOG("Config: [debug mode: %s] [DSX legacy version: %s]",
-        isDebugMode ? "true" : "false",
-        isDSXVersion2 ? "true" : "false"
+    _LOG("Config: [debug mode: %s]",
+        isDebugMode ? "true" : "false"
     );
 }

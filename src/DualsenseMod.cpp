@@ -11,7 +11,13 @@
 #include "rva/RVA.h"
 #include "minhook/include/MinHook.h"
 
-#include "DSX++.h"
+// headers needed for dualsensitive
+#include <udp.h>
+#include <dualsensitive.h>
+#include <IO.h>
+#include <Device.h>
+#include <Helpers.h>
+#include <iostream>
 
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -25,21 +31,118 @@
 #include <thread>
 #include <chrono>
 #include <mutex>
+#include <map>
 
 #define INI_LOCATION "./plugins/dualsense-mod.ini"
 
+// TODO: move the following to a server utils file
+
+PROCESS_INFORMATION serverProcInfo;
+
+
+#include <shellapi.h>
+
+bool launchServerElevated(const std::wstring& exePath = L"./plugins/dualsensitive-service.exe") {
+    wchar_t fullExePath[MAX_PATH];
+    if (!GetFullPathNameW(exePath.c_str(), MAX_PATH, fullExePath, nullptr)) {
+        _LOG("Failed to resolve full path");
+        return false;
+    }
+
+    SHELLEXECUTEINFOW sei = { sizeof(sei) };
+    sei.lpVerb = L"runas";
+    sei.lpFile = fullExePath;
+    sei.nShow = SW_HIDE;
+    sei.fMask = SEE_MASK_NO_CONSOLE;
+
+    if (!ShellExecuteExW(&sei)) {
+        DWORD err = GetLastError();
+        _LOG("ShellExecuteEx failed: %lu", err);
+        return false;
+    }
+
+    return true;
+}
+
+bool launchServer(PROCESS_INFORMATION& outProcInfo, const std::wstring& exePath = L"./plugins/dualsensitive-service.exe") {
+    STARTUPINFOW si = { sizeof(si) };
+    ZeroMemory(&outProcInfo, sizeof(outProcInfo));
+
+    //TODO: add check here for checking if the exe exists!
+
+    BOOL success = CreateProcessW(
+        exePath.c_str(),
+        nullptr,
+        nullptr,
+        nullptr,
+        FALSE,
+        DETACHED_PROCESS,
+        nullptr,
+        nullptr,
+        &si,
+        &outProcInfo
+    );
+
+    if (!success) {
+        _LOG("Failed to launch server.exe. Error: %s\n", GetLastError());
+        return false;
+    }
+
+    // You can close thread handle immediately; we keep process handle
+    CloseHandle(outProcInfo.hThread);
+    return true;
+}
+
+
+bool terminateServer(PROCESS_INFORMATION& procInfo) {
+    if (procInfo.hProcess != nullptr) {
+        BOOL result = TerminateProcess(procInfo.hProcess, 0); // 0 = exit code
+        CloseHandle(procInfo.hProcess);
+        procInfo.hProcess = nullptr;
+        return result == TRUE;
+    }
+    return false;
+}
+
+
+void logLastError(const char* context) {
+    DWORD errorCode = GetLastError();
+    wchar_t* msgBuf = nullptr;
+
+    FormatMessageW(
+        FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+        nullptr,
+        errorCode,
+        0,
+        (LPWSTR)&msgBuf,
+        0,
+        nullptr
+    );
+
+    // Convert wchar_t* msgBuf to char*
+    char narrowBuf[1024] = {};
+    if (msgBuf) {
+        WideCharToMultiByte(CP_UTF8, 0, msgBuf, -1, narrowBuf, sizeof(narrowBuf) - 1, nullptr, nullptr);
+    }
+
+    _LOG("[ERROR] %s failed (code %lu): %s", context, errorCode, msgBuf ? narrowBuf : "(Unknown error)");
+
+    if (msgBuf) {
+        LocalFree(msgBuf);
+    }
+}
+
 struct TriggerSetting {
-    TriggerMode mode;
+    TriggerProfile profile;
     bool isCustomTrigger = false;
-    CustomTriggerValueMode customMode = OFF;
-    std::vector<int> extras;
+    TriggerMode mode = TriggerMode::Off;
+    std::vector<uint8_t> extras;
 
-    TriggerSetting(TriggerMode mode, std::vector<int> extras) :
-        mode(mode), extras(extras) {}
+    TriggerSetting(TriggerProfile profile, std::vector<uint8_t> extras) :
+        profile(profile), extras(extras) {}
 
-    TriggerSetting(CustomTriggerValueMode customMode, std::vector<int> extras) :
-        customMode(customMode), extras(extras), isCustomTrigger(true),
-        mode(CustomTriggerValue) {}
+    TriggerSetting(TriggerMode mode, std::vector<uint8_t> extras) :
+        mode(mode), extras(extras), isCustomTrigger(true) {}
 
 };
 
@@ -77,36 +180,45 @@ void InitTriggerSettings() {
         {
             "WEAPON_PISTOL_DEFAULT", // Grip
             {
-                .L2 = new TriggerSetting(Choppy, {}),
-                .R2 = new TriggerSetting(Soft, {}),
+                .L2 = new TriggerSetting(TriggerProfile::Choppy, {}),
+                .R2 = new TriggerSetting(TriggerProfile::Soft, {})
             }
         },
         {
             "WEAPON_SHOTGUN_SINGLESHOT", // Shatter
             {
                 .L2 = new TriggerSetting (
-                        RigidA,
-                        {60, 71, 56, 128, 195, 210, 256}
+                        TriggerMode::Rigid_A,
+                        {60, 71, 56, 128, 195, 210, 255}
                 ),
-                .R2 = new TriggerSetting(Hardest, {})
+                .R2 = new TriggerSetting (
+                        TriggerProfile::SlopeFeedback,
+                        {0, 5, 1, 8}
+                )
             }
         },
         {
             "WEAPON_SMG_STANDARD", // Spin
             {
                 .L2 = new TriggerSetting (
-                        RigidA,
+                        TriggerMode::Rigid_A,
                         {71, 96, 128, 128, 128, 128, 128}
                 ),
-                .R2 = new TriggerSetting(Vibration, {3, 4, 14})
+                .R2 = new TriggerSetting(
+                        TriggerProfile::Vibration,
+                        {3, 4, 14}
+                )
             }
         },
         {
             "WEAPON_RAILGUN_STANDARD", // Pierce
             {
-                .L2 = new TriggerSetting(Machine, {1, 8, 3, 3, 184}),
+                .L2 = new TriggerSetting (
+                        TriggerProfile::Machine,
+                        {1, 8, 3, 3, 184, 0}
+                ),
                 .R2 = new TriggerSetting (
-                        VibrateResistanceB,
+                        TriggerMode::Pulse_B,
                         {238, 215, 66, 120, 43, 160, 215}
                 )
             }
@@ -114,13 +226,9 @@ void InitTriggerSettings() {
         {
             "WEAPON_ROCKETLAUNCHER_TRIPLESHOT", // Charge
             {
-                //.L2 = new TriggerSetting(Rigid, {}),
-                .L2 = new TriggerSetting (
-                        RigidA,
-                        {209, 42, 232, 192, 232, 209, 232}
-                ),
+                .L2 = new TriggerSetting(TriggerMode::Rigid, {}),
                 .R2 = new TriggerSetting (
-                        RigidA,
+                        TriggerMode::Rigid_A,
                         {209, 42, 232, 192, 232, 209, 232}
                 )
             }
@@ -128,34 +236,25 @@ void InitTriggerSettings() {
         {
             "WEAPON_DLC2_STICKYLAUNCHER", // Surge
             {
-                .L2 = new TriggerSetting(Feedback, {3, 3}),
-                .R2 = new TriggerSetting(VeryHard, {})
+                .L2 = new TriggerSetting(TriggerProfile::Feedback, {3, 3}),
+                .R2 = new TriggerSetting(TriggerProfile::VeryHard, {})
             }
         }
     };
-
-    if (g_config.isDSXVersion2) {
-        g_TriggerSettings["WEAPON_SMG_STANDARD"].R2 =
-            new TriggerSetting(AutomaticGun, {1, 7, 6}); // Spin
-        g_TriggerSettings["WEAPON_DLC2_STICKYLAUNCHER"].L2 =
-            new TriggerSetting(Rigid, {}); // Surge
-    }
 }
 
 void SendTriggers(std::string weaponType) {
     Triggers t = g_TriggerSettings[weaponType];
+#if 1
     if (t.L2->isCustomTrigger)
-        DSX::setLeftCustomTrigger (t.L2->customMode, t.L2->extras);
+        dualsensitive::setLeftCustomTrigger(t.L2->mode, t.L2->extras);
     else
-        DSX::setLeftTrigger (t.L2->mode, t.L2->extras);
+        dualsensitive::setLeftTrigger (t.L2->profile, t.L2->extras);
     if (t.R2->isCustomTrigger)
-        DSX::setRightCustomTrigger (t.R2->customMode, t.R2->extras);
+        dualsensitive::setRightCustomTrigger(t.R2->mode, t.R2->extras);
     else
-        DSX::setRightTrigger (t.R2->mode, t.R2->extras);
-    if (DSX::sendPayload() != DSX::Success) {
-        _LOG("DSX++ client failed to send data!");
-        return;
-    }
+        dualsensitive::setRightTrigger (t.R2->profile, t.R2->extras);
+#endif
     _LOGD("Adaptive Trigger settings sent successfully!");
 }
 
@@ -303,6 +402,11 @@ ModelHandle* g_loadoutModelHandle = nullptr;
 // thread and the OnGameEvent hook
 std::mutex g_currentWeaponMutex;
 std::string g_currentWeaponName;
+
+// This is to make sure that the PID will be sent to the server after
+// the server has started
+std::mutex g_serverLaunchMutex;
+bool g_serverStarted = false;
 
 HMODULE GetRMDModule(const char* modName) {
     char szModuleName[MAX_PATH] = "";
@@ -472,14 +576,10 @@ namespace DualsenseMod {
     }
 
     void resetAdaptiveTriggers() {
-        // TODO: do that in a separate thread to aboid stuttering
+        // TODO: do that in a separate thread to avoid stuttering
         // reset triggers to Normal mode
-        DSX::setLeftTrigger (Normal);
-        DSX::setRightTrigger (Normal);
-        if (DSX::sendPayload() != DSX::Success) {
-            _LOG("DSX++ client failed to send data!");
-            return;
-        }
+        dualsensitive::setLeftTrigger(TriggerProfile::Normal);
+        dualsensitive::setRightTrigger(TriggerProfile::Normal);
         _LOGD("Adaptive Triggers reset successfully!");
     }
 
@@ -579,6 +679,7 @@ namespace DualsenseMod {
         _LOG("Applying hooks...");
         // Hook loadout type registration to obtain pointer to the model handle
         MH_Initialize();
+
         MH_CreateHook (
             DSM_Loadout_TypeRegistration_Internal,
             DSM_Loadout_TypeRegistration_Hook,
@@ -599,7 +700,6 @@ namespace DualsenseMod {
             _LOG("FATAL: Failed to install OnGameEvent hook.");
             return false;
         }
-
 
         // Hook
         MH_CreateHook (
@@ -624,6 +724,7 @@ namespace DualsenseMod {
         }
 
         _LOG("Hooks applied successfully!");
+
         return true;
     }
 
@@ -645,30 +746,25 @@ namespace DualsenseMod {
         return true;
     }
 
-    // we need to spin up a thread and replay the latest adaptive triggers
-    // settings every 30 seconds, otherwise the DSX settings will get lost
-    // if the player stays idle for a while
-    DWORD WINAPI SendHearbeatToDSX(LPVOID lpParam) {
-        while (true) {
-            std::this_thread::sleep_for(std::chrono::seconds(30));
 
-            bool isGameOn = InputManager_IsGameOn(*DSM_InputManager_ppInstance);
-            if (!isGameOn) {
-                _LOGD("We are NOT on a Game screen, just skipping...");
-                continue;
-            }
-            bool isMenuOn = DSM_InputManager_IsMenuOn(*DSM_InputManager_ppInstance);
-            if (isMenuOn) {
-                _LOGD("We are on a menu screen, just skipping...");
-                continue;
-            }
-            replayLatestAdaptiveTriggers();
-        }
-    }
+#define DEVICE_ENUM_INFO_SZ 16
+#define CONTROLLER_LIMIT 16
+std::string wstring_to_utf8(const std::wstring& ws) {
+    int len = WideCharToMultiByte(CP_UTF8, 0, ws.c_str(), -1,
+                                   nullptr, 0, nullptr, nullptr);
+    std::string s(len, 0);
+    WideCharToMultiByte (
+            CP_UTF8, 0, ws.c_str(), -1, &s[0], len, nullptr, nullptr
+    );
+    s.resize(len - 1);
+    return s;
+}
+
+    constexpr int MAX_ATTEMPTS = 5;
+    constexpr int RETRY_DELAY_MS = 2000;
 
     void Init() {
-        // this should be first in order to be able to log
-        g_logger.Open("./plugins/modlog.log");
+        g_logger.Open("./plugins/dualsensemod.log");
         _LOG("DualsenseMod v1.0 by Thanos Petsas (SkyExplosionist)");
         _LOG("Game version: %" PRIX64, Utils::GetGameVersion());
         _LOG("Module base: %p", GetModuleHandle(NULL));
@@ -695,13 +791,39 @@ namespace DualsenseMod {
 
         ApplyHooks();
 
-        CreateThread(NULL, 0, SendHearbeatToDSX, NULL, 0, NULL);
+        CreateThread(nullptr, 0, [](LPVOID) -> DWORD {
+            _LOG("Client starting DualSensitive Service...\n");
+            if (!launchServerElevated()) {
+                _LOG("Error launching the DualSensitive Service...\n");
+                return 1;
+            }
+            g_serverLaunchMutex.lock();
+            g_serverStarted = true;
+            g_serverLaunchMutex.unlock();
+            _LOG("DualSensitive Service launched successfully...\n");
+            return 0;
+        }, nullptr, 0, nullptr);
 
-        if ( DSX::init() != DSX::Success ) {
-            _LOG("DSX++ client failed to initialize!");
-            return;
-        }
-        _LOG("DSX++ client initialized successfully!");
+
+        CreateThread(nullptr, 0, [](LPVOID) -> DWORD {
+            // wait for server to start first
+            do {
+                g_serverLaunchMutex.lock();
+                bool started = g_serverStarted;
+                g_serverLaunchMutex.unlock();
+                if (started) break;
+                std::this_thread::sleep_for(std::chrono::seconds(2));
+            } while (true);
+
+            _LOG("Client starting DualSensitive Service...\n");
+            auto status = dualsensitive::init(AgentMode::CLIENT, "./plugins/duaslensitive-client.log", g_config.isDebugMode);
+            if (status != dualsensitive::Status::Ok) {
+                _LOG("Failed to initialize DualSensitive in CLIENT mode, status: %d", static_cast<std::underlying_type<dualsensitive::Status>::type>(status));
+            }
+                _LOG("DualSensitive Service launched successfully...\n");
+            dualsensitive::sendPidToServer();
+            return 0;
+        }, nullptr, 0, nullptr);
 
         _LOG("Ready.");
     }
