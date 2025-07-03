@@ -693,7 +693,7 @@ namespace DualsenseMod {
             _LOGD(" * (in game again!) turn on adaptive triggers!");
 
             if (!g_recharging) {
-                replayLatestAdaptiveTriggers();
+                setAdaptiveTriggersForCurrrentWeapon();
             }
         }
     }
