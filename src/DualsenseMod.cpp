@@ -63,33 +63,42 @@ bool launchServerElevated(const std::wstring& exePath = L"./plugins/dualsensitiv
 
     return true;
 }
+bool scheduledTaskExists(std::string taskName) {
+    std::string query = "schtasks /query /TN \"" + taskName + "\" >nul 2>&1";
+    int result = WinExec(query.c_str(), SW_HIDE);
+    _LOG("Task exists: %d", result);
+    return (result > 31);
+}
 
-bool launchServer(PROCESS_INFORMATION& outProcInfo, const std::wstring& exePath = L"./plugins/dualsensitive-service.exe") {
-    STARTUPINFOW si = { sizeof(si) };
-    ZeroMemory(&outProcInfo, sizeof(outProcInfo));
+bool launchServerTask() {
+    std::string command = "schtasks /run /TN \"DualSensitive Service\" /I";
+    int result = WinExec(command.c_str(), SW_HIDE);
+    return (result > 31);
+}
 
-    //TODO: add check here for checking if the exe exists!
+// schtasks /Create /TN "DualSensitive Service" /TR "wscript.exe \"C:\Program Files (x86)\Steam\steamapps\common\Control\plugins\launch-service.vbs\" \"C:\Program Files (x86)\Steam\steamapps\common\Control\plugins\dualsensitive-service.exe\"" /SC ONCE /ST 00:00 /RL HIGHEST /F
 
-    BOOL success = CreateProcessW(
-        exePath.c_str(),
-        nullptr,
-        nullptr,
-        nullptr,
-        FALSE,
-        DETACHED_PROCESS,
-        nullptr,
-        nullptr,
-        &si,
-        &outProcInfo
-    );
+bool launchServerTaskOrElevated() {
+    std::string taskName = "DualSensitive Service";
+    if (scheduledTaskExists(taskName.c_str())) {
+        std::string command("schtasks /run /TN \"" + taskName + "\" /I ");
+        _LOG("Running task, command: %s", command.c_str());
+        int result = WinExec(command.c_str(), SW_HIDE);
+        if (result > 31){
+            _LOG("Service ran successfully");
+            return true;
+        }
+        _LOG("Running task failed (code: %d). Falling back to elevation.", result);
+    } else {
+        _LOG("Scheduled task not found. Falling back to elevation.");
+    }
 
-    if (!success) {
-        _LOG("Failed to launch server.exe. Error: %s\n", GetLastError());
+    // Final fallback
+    if (!launchServerElevated()) {
+        _LOG("Fallback elevation also failed. Check permissions or try manually running dualsensitive-service.exe.");
         return false;
     }
 
-    // You can close thread handle immediately; we keep process handle
-    CloseHandle(outProcInfo.hThread);
     return true;
 }
 
@@ -816,7 +825,8 @@ std::string wstring_to_utf8(const std::wstring& ws) {
 
         CreateThread(nullptr, 0, [](LPVOID) -> DWORD {
             _LOG("Client starting DualSensitive Service...\n");
-            if (!launchServerElevated()) {
+
+            if (!launchServerTaskOrElevated()) {
                 _LOG("Error launching the DualSensitive Service...\n");
                 return 1;
             }
@@ -839,7 +849,7 @@ std::string wstring_to_utf8(const std::wstring& ws) {
             } while (true);
 
             _LOG("Client starting DualSensitive Service...\n");
-            auto status = dualsensitive::init(AgentMode::CLIENT, "./plugins/duaslensitive-client.log", g_config.isDebugMode);
+            auto status = dualsensitive::init(AgentMode::CLIENT, "./plugins/DualSensitive/duaslensitive-client.log", g_config.isDebugMode);
             if (status != dualsensitive::Status::Ok) {
                 _LOG("Failed to initialize DualSensitive in CLIENT mode, status: %d", static_cast<std::underlying_type<dualsensitive::Status>::type>(status));
             }
