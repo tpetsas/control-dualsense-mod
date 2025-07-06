@@ -22,8 +22,8 @@ Compression=lzma
 SolidCompression=yes
 SetupIconFile=assets\control_installer.ico
 WizardSmallImageFile=assets\DualSensitive_dark.bmp
-WizardImageFile=assets\Control-installer-background.bmp
-UninstallDisplayIcon=assets\control_uninstaller.ico
+WizardImageFile=assets\inno_side_background_164x314.bmp
+UninstallDisplayIcon={app}\control_uninstaller.ico
 DisableProgramGroupPage=yes
 
 [CustomMessages]
