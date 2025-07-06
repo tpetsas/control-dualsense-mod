@@ -309,6 +309,7 @@ begin
   Result := False;
   ManifestDir := 'C:\ProgramData\Epic\EpicGamesLauncher\Data\Manifests';
 
+  Log('Checking if the game is installed via Epic');
   if DirExists(ManifestDir) then
   begin
     if FindFirst(ManifestDir + '\*.item', FindRec) then
@@ -321,9 +322,10 @@ begin
             for i := 0 to GetArrayLength(Lines) - 1 do
             begin
               Line := Lines[i];
-              if Pos(Uppercase('"DisplayName":"Control'), Uppercase(Line)) > 0 then
+              if Pos(Uppercase('"DisplayName": "Control"'), Uppercase(Line)) > 0 then
               begin
                 // Found the Control manifest
+                Log('Found the Epic Manifest of Control: ' + FilePath);
                 // Now look forward for "InstallLocation"
                 while i < GetArrayLength(Lines) - 1 do
                 begin
