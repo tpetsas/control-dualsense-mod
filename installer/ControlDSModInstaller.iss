@@ -299,6 +299,26 @@ begin
   end;
 end;
 
+function ExtractJsonValue(Line: string): string;
+var
+  i: Integer;
+begin
+  Result := '';
+  i := Pos(':', Line);
+  if i > 0 then
+  begin
+    Result := Trim(Copy(Line, i + 1, Length(Line)));
+    // Remove surrounding quotes and trailing commas
+    if (Length(Result) >= 2) and (Result[1] = '"') then
+    begin
+      Delete(Result, 1, 1);
+      i := Pos('"', Result);
+      if i > 0 then
+        Result := Copy(Result, 1, i - 1);
+    end;
+  end;
+end;
+
 function FileExistsInEpic(): Boolean;
 var
   FindRec: TFindRec;
@@ -333,7 +353,8 @@ begin
                   if Pos('"InstallLocation":', Lines[i]) > 0 then
                   begin
                     // Extract value from: "InstallLocation":"C:\\Path\\To\\Control"
-                    EpicInstallPath := StripQuotesAndKeyPrefix(Lines[i], 'InstallLocation:');
+                    // EpicInstallPath := StripQuotesAndKeyPrefix(Lines[i], '');
+                    EpicInstallPath := ExtractJsonValue(Lines[i]);
                     if EpicInstallPath = '' then
                         Log('Warning: Epic path was found but empty after parsing');
                     break;
