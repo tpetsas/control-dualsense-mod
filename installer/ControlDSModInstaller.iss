@@ -80,6 +80,69 @@ Type: dirifempty; Name: "{code:GetInstallPath}\plugins"
 Type: dirifempty; Name: "{app}"
 
 [Code]
+var
+  DisclaimerCheckBox: TNewCheckBox;
+  //DisclaimerPage: TInputQueryWizardPage;
+  DisclaimerAccepted: Boolean;
+  DisclaimerPage: TWizardPage;
+  //DisclaimerAccepted: TNewCheckBox;
+
+procedure CreateDisclaimerPage();
+var
+  Memo: TMemo;
+begin
+  DisclaimerAccepted := False;
+  DisclaimerPage := CreateCustomPage(
+    wpWelcome,
+    'Disclaimer',
+    'Please read and accept the following disclaimer before continuing.'
+  );
+
+  Memo := TMemo.Create(DisclaimerPage);
+  Memo.Parent := DisclaimerPage.Surface;
+  Memo.Left := ScaleX(0);
+  Memo.Top := ScaleY(0);
+  Memo.Width := DisclaimerPage.Surface.Width;  // Full width
+  Memo.Height := ScaleY(150);  // Adjust height as needed
+  Memo.ReadOnly := True;
+  Memo.ScrollBars := ssVertical;
+  Memo.WordWrap := True;
+  Memo.Text :=
+    'This mod is provided as-is, without any warranty or guarantee of performance.' + #13#10 +
+    'By continuing, you acknowledge that you are installing third-party software which may interact with the game in ways not intended by its original developers.' + #13#10 +
+    'Use at your own risk. The authors and platforms are not responsible for any issues caused.';
+
+  // Create and position the checkbox under the memo
+  DisclaimerCheckBox := TNewCheckBox.Create(DisclaimerPage);
+  DisclaimerCheckBox.Parent := DisclaimerPage.Surface;
+  DisclaimerCheckBox.Top := Memo.Top + Memo.Height + ScaleY(8);
+  DisclaimerCheckBox.Left := ScaleX(0);
+  DisclaimerCheckBox.Width := DisclaimerPage.Surface.Width;
+  DisclaimerCheckBox.Caption := 'I have read and accept the disclaimer above.';
+  //DisclaimerCheckBox.OnClick := @CurPageChangedCheck;
+
+  WizardForm.NextButton.Enabled := False;
+end;
+
+function ShouldSkipPage(PageID: Integer): Boolean;
+begin
+  Result := False;
+  if Assigned(DisclaimerPage) and (PageID = DisclaimerPage.ID) then
+    Result := DisclaimerAccepted;
+end;
+
+procedure CurPageChanged(CurPageID: Integer);
+begin
+  if Assigned(DisclaimerPage) and (CurPageID = DisclaimerPage.ID) then
+    WizardForm.NextButton.Enabled := DisclaimerAccepted;
+end;
+
+procedure CurPageChangedCheck(Sender: TObject);
+begin
+  DisclaimerAccepted := TNewCheckBox(Sender).Checked;
+  WizardForm.NextButton.Enabled := DisclaimerAccepted;
+end;
+
 
 var
   SteamCheckbox, EpicCheckbox, ManualCheckbox: TCheckBox;
@@ -112,11 +175,6 @@ begin
   Result := SelectedInstallPath;
 end;
 
-procedure CurPageChanged(CurPageID: Integer);
-begin
-  // Optional debug
-  Log('Page changed: ' + IntToStr(CurPageID));
-end;
 
 function GetSchedTaskCommand(Param: string): string;
 var
@@ -148,26 +206,33 @@ begin
 
   if CurPageID = MyPage.ID then
   begin
-    if SteamCheckbox <> nil then
-begin
-  if SteamCheckbox.Checked then
-  begin
-    if RegQueryStringValue(HKCU, 'Software\Valve\Steam', 'SteamPath', SteamPath) then
-      SelectedInstallPath := SteamPath + '\steamapps\common\Control'
-    else
-      SelectedInstallPath := ''; // fallback
-    Log('Using Steam path: ' + SelectedInstallPath);
-  end;
-end;
+    if not DisclaimerAccepted then
+    begin
+      MsgBox('You must accept the disclaimer to continue.', mbError, MB_OK);
+      Result := False;
+    end;
 
-if EpicCheckbox <> nil then
-begin
-  if EpicCheckbox.Checked then
-  begin
-    SelectedInstallPath := EpicInstallPath;
-    Log('Using Epic path: ' + SelectedInstallPath);
-  end;
-end;
+    if SteamCheckbox <> nil then
+    begin
+      if SteamCheckbox.Checked then
+      begin
+        if RegQueryStringValue(HKCU, 'Software\Valve\Steam', 'SteamPath', SteamPath) then
+          SelectedInstallPath := SteamPath + '\steamapps\common\Control'
+        else
+          SelectedInstallPath := ''; // fallback
+        Log('Using Steam path: ' + SelectedInstallPath);
+      end;
+    end;
+
+    if EpicCheckbox <> nil then
+    begin
+      if EpicCheckbox.Checked then
+      begin
+        SelectedInstallPath := EpicInstallPath;
+        Log('Using Epic path: ' + SelectedInstallPath);
+      end;
+    end;
+
     if ManualCheckbox.Checked then
     begin
       SelectedInstallPath := ManualPathEdit.Text;
@@ -188,82 +253,6 @@ end;
 
   end;
 end;
-(*
-procedure InitializeWizard;
-var
-  InfoLabel1, InfoLabel2, InfoLabel3, InfoLabel4: TLabel;
-begin
-  // Create the custom page to appear *after* the Welcome page
-  MyPage := CreateCustomPage(wpSelectDir, 'Choose Game Versions', 'Select which game versions to install the mod for.');
-
-  // Info labels
-  InfoLabel1 := TLabel.Create(WizardForm);
-  InfoLabel1.Parent := MyPage.Surface;
-  InfoLabel1.Top := ScaleY(0);
-  InfoLabel1.Left := ScaleX(0);
-  InfoLabel1.Font.Style := [fsBold];
-  InfoLabel1.Caption := CustomMessage('InstallInfoLine1');
-
-  InfoLabel2 := TLabel.Create(WizardForm);
-  InfoLabel2.Parent := MyPage.Surface;
-  InfoLabel2.Top := InfoLabel1.Top + ScaleY(20);
-  InfoLabel2.Left := ScaleX(0);
-  InfoLabel2.Caption := CustomMessage('InstallInfoLine2');
-
-  InfoLabel3 := TLabel.Create(WizardForm);
-  InfoLabel3.Parent := MyPage.Surface;
-  InfoLabel3.Top := InfoLabel2.Top + ScaleY(20);
-  InfoLabel3.Left := ScaleX(0);
-  InfoLabel3.Caption := CustomMessage('InstallInfoLine3');
-
-  InfoLabel4 := TLabel.Create(WizardForm);
-  InfoLabel4.Parent := MyPage.Surface;
-  InfoLabel4.Top := InfoLabel3.Top + ScaleY(30);
-  InfoLabel4.Left := ScaleX(0);
-  InfoLabel4.Caption := CustomMessage('InstallInfoLine4');
-
-  // Steam checkbox
-  SteamCheckbox := TCheckBox.Create(WizardForm);
-  SteamCheckbox.Parent := MyPage.Surface;
-  SteamCheckbox.Top := InfoLabel4.Top + ScaleY(40);
-  SteamCheckbox.Left := ScaleX(0);
-  SteamCheckbox.Width := ScaleX(300);
-  SteamCheckbox.Caption := 'Install for Steam (Control)';
-
-  // Epic checkbox
-  EpicCheckbox := TCheckBox.Create(WizardForm);
-  EpicCheckbox.Parent := MyPage.Surface;
-  EpicCheckbox.Top := SteamCheckbox.Top + ScaleY(24);
-  EpicCheckbox.Left := ScaleX(0);
-  EpicCheckbox.Width := ScaleX(300);
-  EpicCheckbox.Caption := 'Install for Epic Games (Control)';
-
-  // Manual checkbox
-  ManualCheckbox := TCheckBox.Create(WizardForm);
-  ManualCheckbox.Parent := MyPage.Surface;
-  ManualCheckbox.Top := EpicCheckbox.Top + ScaleY(24);
-  ManualCheckbox.Left := ScaleX(0);
-  ManualCheckbox.Width := ScaleX(300);
-  ManualCheckbox.Caption := 'Install to custom path:';
-
-  // Manual path edit box
-  ManualPathEdit := TEdit.Create(WizardForm);
-  ManualPathEdit.Parent := MyPage.Surface;
-  ManualPathEdit.Top := ManualCheckbox.Top + ScaleY(24);
-  ManualPathEdit.Left := ScaleX(0);
-  ManualPathEdit.Width := ScaleX(300);
-  ManualPathEdit.Text := 'C:\Games\Control';
-
-  // Browse button
-  ManualBrowseButton := TButton.Create(WizardForm);
-  ManualBrowseButton.Parent := MyPage.Surface;
-  ManualBrowseButton.Top := ManualPathEdit.Top;
-  ManualBrowseButton.Left := ManualPathEdit.Left + ManualPathEdit.Width + ScaleX(8);
-  ManualBrowseButton.Width := ScaleX(75);
-  ManualBrowseButton.Caption := 'Browse...';
-  ManualBrowseButton.OnClick := @BrowseManualPath;
-end;
-*)
 
 function FileExistsInSteam(): Boolean;
 var
@@ -462,6 +451,8 @@ var
   IsSteamInstalled, IsEpicInstalled: Boolean;
   CurrentTop: Integer;
 begin
+  CreateDisclaimerPage();
+  DisclaimerCheckBox.OnClick := @CurPageChangedCheck;
   MyPage := CreateCustomPage(wpSelectDir, 'Choose Game Versions', 'Select which game versions to install the mod for.');
 
   IsSteamInstalled := FileExistsInSteam();
