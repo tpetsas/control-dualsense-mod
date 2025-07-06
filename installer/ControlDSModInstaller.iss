@@ -352,6 +352,87 @@ begin
   end;
 end;
 
+var
+  DeleteLogsPage: TWizardPage;
+  DeleteLogsCheckbox: TNewCheckBox;
+  LogPaths: TStringList;
+
+procedure CheckAndAddPath(BasePath: string);
+var
+  DualSensitiveDir: string;
+begin
+DualSensitiveDir := BasePath + '\plugins\DualSensitive';
+if FileExists(DualSensitiveDir + '\dualsensitive-service.log') or
+   FileExists(DualSensitiveDir + '\dualsensitive-client.log') then
+  LogPaths.Add(DualSensitiveDir);
+end;
+
+procedure DetectLogFiles();
+var
+  SteamPath, EpicPath, ManualPath: string;
+
+begin
+  if RegQueryStringValue(HKCU, 'Software\Valve\Steam', 'SteamPath', SteamPath) then
+    CheckAndAddPath(SteamPath + '\steamapps\common\Control');
+
+  if EpicInstallPath <> '' then
+    CheckAndAddPath(EpicInstallPath);
+
+  CheckAndAddPath(ExpandConstant('{app}'));
+end;
+
+procedure CreateLogDeletePrompt();
+var
+  answer: Integer;
+begin
+  if LogPaths.Count = 0 then Exit;
+
+  answer := MsgBox(
+    'Log files from DualSensitive were found in one or more Control installations.' + #13#10#13#10 +
+    'Do you also want to delete these log folders (including Steam/Epic paths)?',
+    mbConfirmation, MB_YESNO);
+
+  if answer = IDYES then
+  begin
+    DeleteLogsCheckbox := TNewCheckBox.Create(nil); // simulate user consent
+    DeleteLogsCheckbox.Checked := True;
+  end;
+end;
+
+procedure InitializeUninstallProgressForm();
+begin
+  LogPaths := TStringList.Create;
+  DetectLogFiles();
+  if LogPaths.Count > 0 then
+  begin
+    if MsgBox(
+         'Log files from DualSensitive were found in one or more Control installations.' + #13#10#13#10 +
+         'Do you want to delete these log folders (including Steam/Epic paths)?',
+         mbConfirmation, MB_YESNO) = IDYES
+    then
+    begin
+      DeleteLogsCheckbox := TNewCheckBox.Create(nil); // simulate consent
+      DeleteLogsCheckbox.Checked := True;
+    end;
+  end;
+end;
+
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+var
+  i: Integer;
+begin
+  if (CurUninstallStep = usPostUninstall) and
+     (LogPaths <> nil) and
+     (DeleteLogsCheckbox <> nil) and
+     DeleteLogsCheckbox.Checked then
+  begin
+    for i := 0 to LogPaths.Count - 1 do
+    begin
+      Log('Deleting: ' + LogPaths[i]);
+      DelTree(LogPaths[i], True, True, True);
+    end;
+  end;
+end;
 
 
 procedure InitializeWizard;
@@ -391,7 +472,6 @@ begin
   InfoLabel4.Left := ScaleX(0);
   InfoLabel4.Caption := CustomMessage('InstallInfoLine4');
 
-  // ✅ Fix: start layout below InfoLabel4
   CurrentTop := InfoLabel4.Top + ScaleY(24);
 
   // Steam checkbox
