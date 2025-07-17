@@ -22,7 +22,7 @@ Compression=lzma
 SolidCompression=yes
 SetupIconFile=assets\control_installer.ico
 WizardSmallImageFile=assets\DualSensitive_dark.bmp
-WizardImageFile=assets\inno_side_background_164x314.bmp
+WizardImageFile=assets\dualsensitive_background_240x459_blackfill.bmp
 UninstallDisplayIcon={app}\control_uninstaller.ico
 DisableProgramGroupPage=yes
 
@@ -108,9 +108,18 @@ begin
   Memo.ScrollBars := ssVertical;
   Memo.WordWrap := True;
   Memo.Text :=
-    'This mod is provided as-is, without any warranty or guarantee of performance.' + #13#10 +
-    'By continuing, you acknowledge that you are installing third-party software which may interact with the game in ways not intended by its original developers.' + #13#10 +
-    'Use at your own risk. The authors and platforms are not responsible for any issues caused.';
+'This mod is provided "as is" with no warranty or guarantee of performance.' + #13#10 +
+'By continuing, you acknowledge that you are installing third-party software' + #13#10 +
+'which may modify or interact with the game in ways not intended by its original developers.' + #13#10 +
+'' + #13#10 +
+'Use at your own risk. The authors and platforms are not responsible' + #13#10 +
+'for any damage, data loss, or other issues caused by this software.' + #13#10 +
+'' + #13#10 +
+'This is a non-commercial fan-made project. All rights to the game "Control"' + #13#10 +
+'and its characters belong to Remedy Entertainment and 505 Games.' + #13#10 +
+'Artwork inspired by the character Jessie Faden.' + #13#10 +
+'' + #13#10 +
+'Created by Thanos Petsas - https://thanasispetsas.com';
 
   // Create and position the checkbox under the memo
   DisclaimerCheckBox := TNewCheckBox.Create(DisclaimerPage);
