@@ -641,8 +641,8 @@ namespace DualsenseMod {
         }
         _LOGD("in OnGameEvent hook! - event message: \"%s\"", eventMessage);
 
-        if (!g_recharging && !strcmp(eventMessage, "dry_fire")) {
-            _LOGD("dry_fire found: reset adaptive triggers and enter recharging mode!");
+        if (!g_recharging && !strcmp(eventMessage, "reloading_deficit_enter")) {
+            _LOGD("reloading_deficit_enter found: reset adaptive triggers and enter recharging mode!");
             resetAdaptiveTriggers();
             g_recharging = true;
             return;
