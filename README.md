@@ -9,7 +9,7 @@ Built with the tools and technologies:
 [![Ghidra](https://tinyurl.com/yuv64wyh)](https://ghidra-sre.org/)
 [![Radare2](https://tinyurl.com/52tue3ve)](https://rada.re/n/radare2.html)
 
-<img src="https://github.com/user-attachments/assets/d997ea9b-d3e0-4d07-8688-553caa2e3fd5" alt="dualsense-mod" width="400"/>
+<img width="512" alt="logo" src="https://github.com/user-attachments/assets/dc0e5cd3-47fa-4c78-a27d-d0524a01b67d" />
 
 ## Overview
 
@@ -37,19 +37,45 @@ This mod adds the following features:
     - **Note:** I don't own a PS5 and I don't have access to the PS5 version of the game; I tried to replicate the adaptive trigger effects based on some videos I found on the web
 - Adaptive triggers get disabled when the player is on an inner Menu or the game is paused
 
-## Requirements
-
-This mod requires the following:
-- [Control Plugin Loader], a DLL loader that allows mods to modify low-level parts of the game using native code implemented by [2kreg].
-
 ## Installation
 
 [Control DualSense Mod v1.0.0]: https://github.com/tpetsas/control-dualsense-mod/releases/tag/1.0.0
 
-**Note:** For the older version of the mod ([Control DualSense Mod v1.0.0]) that requires the [DSX] third party app to work, refer to these instructions: [![Control DualSense Mod Old](https://img.shields.io/badge/control--dualsense--mod-version%201.0.0-red)](https://github.com/tpetsas/control-dualsense-mod/blob/main/README.dsx.md)
+> **Note:** For the older version of the mod ([Control DualSense Mod v1.0.0]) that requires the [DSX] third party app to work, refer to these instructions: [![Control DualSense Mod Old](https://img.shields.io/badge/control--dualsense--mod-version%201.0.0-red)](https://github.com/tpetsas/control-dualsense-mod/blob/main/README.dsx.md)
+
+[installer-link]: http://TBD
+[Control DualSense Mod v2.2.0]: https://github.com/tpetsas/control-dualsense-mod/releases/tag/2.2.0
+
+**1. Download the **[Control-DualSensitive-Mod_Setup.exe][installer-link]** from the latest version ([Control DualSense Mod v2.2.0])**
 
 
-**Todo:** New Instructions here...
+
+**2. Double click the installer to run it:**
+
+<img width="491" alt="setup" src="https://github.com/user-attachments/assets/02d96c32-27cb-49e4-baf3-782187208b0b" />
+
+
+
+**3. Accept the disclaimer and follow the prompts until the setup is complete:**
+
+<img width="491" height="382" alt="disclaimer" src="https://github.com/user-attachments/assets/ace9f161-88f4-4af0-8ea0-02a027240634" />
+
+
+
+**Once all steps are completed, you will reach the final screen indicating that the setup is finished:**
+
+<img width="491" height="383" alt="finished" src="https://github.com/user-attachments/assets/c0d28e1d-006c-43d7-a5de-f6f17c43655f" />
+
+
+
+Now, you can experience the mod by just running the game.
+
+## Uninstallation
+
+To unisntall the game, simply go to **Settings > Add or remove programs**, locate the mod, choose uninstall and follow the prompts:
+
+<img width="491" alt="uninstall" src="https://github.com/user-attachments/assets/22c12d2a-42f6-47ab-935b-f314701b09bb" />
+
 
 ## Configuration
 
@@ -74,5 +100,3 @@ Please report any bugs or flaws! I recommend to grab a debug version of the mod 
 [2kreg] for [Control Plugin Loader] and all the knowledge and examples from all their other Control mods! Thanks! :metal:
 
 [Tsuda Kageyu](https://github.com/tsudakageyu), [Michael Maltsev](https://github.com/m417z) & [Andrey Unis](https://github.com/uniskz) for [MinHook](https://github.com/TsudaKageyu/minhook)! :syringe:
-
-[Paliverse](https://github.com/Paliverse)! :video_game:
