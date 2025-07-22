@@ -46,14 +46,14 @@ This mod adds the following features:
 [installer-link]: http://TBD
 [Control DualSense Mod v2.2.0]: https://github.com/tpetsas/control-dualsense-mod/releases/tag/2.2.0
 
-### Windows SmartScreen or Antivirus Warning
+### :exclamation: Windows SmartScreen or Antivirus Warning
 
 If Windows or your antivirus flags this installer or executable, it’s most likely because the file is **not digitally signed**.
 
 This is a known limitation affecting many **open-source projects** that don't use paid code-signing certificates.
 
-#### ✅ What you should know:
-- This mod is **open source**, and you can [inspect the full source code on GitHub](https://github.com/your-username/your-repo).
+#### :white_check_mark: What you should know:
+- This mod is **open source**, and you can inspect the full source code here on GitHub.
 - It **does not contain malware or spyware**.
 - Some antivirus programs may incorrectly flag unsigned software — these are known as **false positives**.
 
