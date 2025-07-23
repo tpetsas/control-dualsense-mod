@@ -453,12 +453,19 @@ begin
   end;
 end;
 
+procedure OnVisitWebsiteClick(Sender: TObject);
+var
+    ErrCode: integer;
+begin
+  ShellExec('open', 'https://www.dualsensitive.com/', '', '', SW_SHOW, ewNoWait, ErrCode);
+end;
 
 procedure InitializeWizard;
 var
   InfoLabel1, InfoLabel2, InfoLabel3, InfoLabel4: TLabel;
   IsSteamInstalled, IsEpicInstalled: Boolean;
   CurrentTop: Integer;
+  ThankYouLabel, WebsiteLabel: TNewStaticText;
 begin
   CreateDisclaimerPage();
   DisclaimerCheckBox.OnClick := @CurPageChangedCheck;
@@ -554,5 +561,26 @@ begin
   // Initialize enabled/disabled state
   ManualCheckboxClick(nil);
 
-end;
+  begin
+    // Thank-you message (non-clickable)
+    ThankYouLabel := TNewStaticText.Create(WizardForm);
+    ThankYouLabel.Parent := WizardForm.FinishedPage;
+    ThankYouLabel.Caption := #13#10 + 'Thank you for installing the Control — DualSensitive Mod!' + #13#10 +
+                             'For news and updates, please visit:';
+    ThankYouLabel.Top := WizardForm.FinishedLabel.Top + WizardForm.FinishedLabel.Height + ScaleY(16);
+    ThankYouLabel.Left := WizardForm.FinishedLabel.Left;
+    ThankYouLabel.AutoSize := True;
 
+    // Hyperlink (clickable)
+    WebsiteLabel := TNewStaticText.Create(WizardForm);
+    WebsiteLabel.Parent := WizardForm.FinishedPage;
+    WebsiteLabel.Caption := 'https://www.dualsensitive.com/';
+    WebsiteLabel.Font.Color := clBlue;
+    WebsiteLabel.Font.Style := WebsiteLabel.Font.Style + [fsUnderline];
+    WebsiteLabel.Cursor := crHand;
+    WebsiteLabel.OnClick := @OnVisitWebsiteClick;
+    WebsiteLabel.Top := ThankYouLabel.Top + ThankYouLabel.Height + ScaleY(8);
+    WebsiteLabel.Left := ThankYouLabel.Left;
+    WebsiteLabel.AutoSize := True;
+  end;
+end;
