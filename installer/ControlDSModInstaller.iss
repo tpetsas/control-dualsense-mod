@@ -107,6 +107,7 @@ begin
   Memo.ReadOnly := True;
   Memo.ScrollBars := ssVertical;
   Memo.WordWrap := True;
+  Memo.Font.Size := WizardForm.Font.Size;
   Memo.Text :=
 'This mod is provided "as is" with no warranty or guarantee of performance.' + #13#10 +
 'By continuing, you acknowledge that you are installing third-party software' + #13#10 +
@@ -127,6 +128,7 @@ begin
   DisclaimerCheckBox.Top := Memo.Top + Memo.Height + ScaleY(8);
   DisclaimerCheckBox.Left := ScaleX(0);
   DisclaimerCheckBox.Width := DisclaimerPage.Surface.Width;
+  DisclaimerCheckBox.Font.Size := WizardForm.Font.Size;
   DisclaimerCheckBox.Caption := 'I have read and accept the disclaimer above.';
   //DisclaimerCheckBox.OnClick := @CurPageChangedCheck;
 
@@ -167,6 +169,7 @@ begin
   Dir := ManualPathEdit.Text;
   if BrowseForFolder('Select game folder...', Dir, false) then
     ManualPathEdit.Text := Dir;
+    ManualPathEdit.Font.Size := WizardForm.Font.Size;
 end;
 
 procedure ManualCheckboxClick(Sender: TObject);
@@ -469,6 +472,7 @@ var
 begin
   CreateDisclaimerPage();
   DisclaimerCheckBox.OnClick := @CurPageChangedCheck;
+  DisclaimerCheckBox.Font.Size := WizardForm.Font.Size;
   MyPage := CreateCustomPage(wpSelectDir, 'Choose Game Versions', 'Select which game versions to install the mod for.');
 
   IsSteamInstalled := FileExistsInSteam();
@@ -480,24 +484,28 @@ begin
   InfoLabel1.Top := ScaleY(0);
   InfoLabel1.Left := ScaleX(0);
   InfoLabel1.Font.Style := [fsBold];
+  InfoLabel1.Font.Size := WizardForm.Font.Size;
   InfoLabel1.Caption := CustomMessage('InstallInfoLine1');
 
   InfoLabel2 := TLabel.Create(WizardForm);
   InfoLabel2.Parent := MyPage.Surface;
   InfoLabel2.Top := InfoLabel1.Top + ScaleY(20);
   InfoLabel2.Left := ScaleX(0);
+  InfoLabel2.Font.Size := WizardForm.Font.Size;
   InfoLabel2.Caption := CustomMessage('InstallInfoLine2');
 
   InfoLabel3 := TLabel.Create(WizardForm);
   InfoLabel3.Parent := MyPage.Surface;
   InfoLabel3.Top := InfoLabel2.Top + ScaleY(20);
   InfoLabel3.Left := ScaleX(0);
+  InfoLabel3.Font.Size := WizardForm.Font.Size;
   InfoLabel3.Caption := CustomMessage('InstallInfoLine3');
 
   InfoLabel4 := TLabel.Create(WizardForm);
   InfoLabel4.Parent := MyPage.Surface;
   InfoLabel4.Top := InfoLabel3.Top + ScaleY(30);
   InfoLabel4.Left := ScaleX(0);
+  InfoLabel4.Font.Size := WizardForm.Font.Size;
   InfoLabel4.Caption := CustomMessage('InstallInfoLine4');
 
   CurrentTop := InfoLabel4.Top + ScaleY(24);
@@ -510,6 +518,7 @@ begin
     SteamCheckbox.Top := CurrentTop;
     SteamCheckbox.Left := ScaleX(0);
     SteamCheckbox.Width := ScaleX(300);
+    SteamCheckbox.Font.Size := WizardForm.Font.Size;
     SteamCheckbox.Caption := 'Install for Steam';
     SteamCheckbox.Checked := True;
     CurrentTop := CurrentTop + ScaleY(24);
@@ -523,6 +532,7 @@ begin
     EpicCheckbox.Top := CurrentTop;
     EpicCheckbox.Left := ScaleX(0);
     EpicCheckbox.Width := ScaleX(300);
+    EpicCheckbox.Font.Size := WizardForm.Font.Size;
     EpicCheckbox.Caption := 'Install for Epic Games';
     if not IsSteamInstalled then
       EpicCheckbox.Checked := True;
@@ -535,6 +545,7 @@ begin
   ManualCheckbox.Top := CurrentTop;
   ManualCheckbox.Left := ScaleX(0);
   ManualCheckbox.Width := ScaleX(300);
+  ManualCheckbox.Font.Size := WizardForm.Font.Size;
   ManualCheckbox.Caption := 'Install to custom path:';
   ManualCheckbox.OnClick := @ManualCheckboxClick;
   ManualCheckbox.Checked := (not IsSteamInstalled) and (not IsEpicInstalled);
@@ -548,6 +559,7 @@ begin
   ManualPathEdit.Left := ScaleX(0);
   ManualPathEdit.Width := ScaleX(300);
   ManualPathEdit.Text := 'C:\Games\Control';
+  ManualPathEdit.Font.Size := WizardForm.Font.Size;
 
   // Browse button
   ManualBrowseButton := TButton.Create(WizardForm);
