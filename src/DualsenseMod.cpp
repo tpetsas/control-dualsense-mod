@@ -797,7 +797,7 @@ std::string wstring_to_utf8(const std::wstring& ws) {
 
     void Init() {
         g_logger.Open("./plugins/dualsensemod.log");
-        _LOG("DualsenseMod v1.0 by Thanos Petsas (SkyExplosionist)");
+        _LOG("DualsenseMod v2.2 by Thanos Petsas (SkyExplosionist)");
         _LOG("Game version: %" PRIX64, Utils::GetGameVersion());
         _LOG("Module base: %p", GetModuleHandle(NULL));
 

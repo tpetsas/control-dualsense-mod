@@ -14,6 +14,9 @@
 AppId={#AppId}
 AppName={#ModName}
 AppVersion=2.2
+VersionInfoVersion=2.2.1.0
+VersionInfoTextVersion=2.2.1.0
+VersionInfoProductVersion=2.2.1.0
 DefaultDirName={pf}\DualSensitive\{#ModName}
 DefaultGroupName={#ModName}
 OutputDir=.
@@ -24,6 +27,7 @@ SetupIconFile=assets\control_installer.ico
 WizardSmallImageFile=assets\DualSensitive_dark.bmp
 WizardImageFile=assets\dualsensitive_background_240x459_blackfill.bmp
 UninstallDisplayIcon={app}\control_uninstaller.ico
+UninstallDisplayName={#ModName}
 DisableProgramGroupPage=yes
 
 [CustomMessages]
