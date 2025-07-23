@@ -551,6 +551,7 @@ begin
   ManualPathEdit.Top := CurrentTop;
   ManualPathEdit.Left := ScaleX(0);
   ManualPathEdit.Width := ScaleX(300);
+  ManualPathEdit.Height := ScaleX(25);
   ManualPathEdit.Text := 'C:\Games\Control';
 
   // Browse button
@@ -559,6 +560,7 @@ begin
   ManualBrowseButton.Top := CurrentTop;
   ManualBrowseButton.Left := ManualPathEdit.Left + ManualPathEdit.Width + ScaleX(8);
   ManualBrowseButton.Width := ScaleX(75);
+  ManualBrowseButton.Height := ScaleX(25);
   ManualBrowseButton.Caption := 'Browse...';
   ManualBrowseButton.OnClick := @BrowseManualPath;
 
