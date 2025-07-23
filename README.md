@@ -95,8 +95,9 @@ To unisntall the game, simply go to **Settings > Add or remove programs**, locat
 
 
 ## Usage & Configuration
+[tray-options]: https://github.com/tpetsas/dualsensitive/blob/main/README.md#tray-application-options
 
-The mod will start as soon as the game is started. You can enable/disable the adaptive triggers feature any time from the tray app. For more information, check the [DualSensitive Tray Application Options section][https://github.com/tpetsas/dualsensitive/blob/main/README.md#tray-application-options]. The tray app closes automatically when the game exits.
+The mod will start as soon as the game is started. You can enable/disable the adaptive triggers feature any time from the tray app. For more information, check the [DualSensitive Tray Application Options section][tray-options]. The tray app closes automatically when the game exits.
 
 The mod supports two configuration options as of now via an INI file stored in the `plugins` directory named `dualsense-mod.ini`
 
