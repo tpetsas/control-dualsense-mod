@@ -41,8 +41,9 @@ jobs:
     - name: Upload Installer EXE
       uses: actions/upload-artifact@v4
       with:
-        name: Control-DualSensitive-Mod_Setup
+        name: Control-DualSensitive-Mod_Setup.exe
         path: installer/Control-DualSensitive-Mod_Setup.exe
+        if-no-files-found: error
 
     - name: Prepare Manual Install ZIP
       run: |
@@ -58,6 +59,7 @@ jobs:
     - name: Upload Manual Install ZIP
       uses: actions/upload-artifact@v4
       with:
-        name: Control-DualSensitive-Mod_Manual
+        name: Control-DualSensitive-Mod_Manual.zip
         path: Control-DualSensitive-Mod_Manual.zip
+        if-no-files-found: error
 
