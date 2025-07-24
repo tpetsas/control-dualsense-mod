@@ -70,6 +70,8 @@ jobs:
     - name: Upload to GitHub Release
       uses: softprops/action-gh-release@v2
       with:
+        tag_name: ${{ github.ref_name }}
+        name: "Control DualSense Mod ${{ github.ref_name }}"
         files: installer/Control-DualSensitive-Mod_Setup.exe
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
