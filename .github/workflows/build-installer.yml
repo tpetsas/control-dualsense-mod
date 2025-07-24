@@ -70,9 +70,7 @@ jobs:
     - name: Upload to GitHub Release
       uses: softprops/action-gh-release@v2
       with:
-        files: |
-          Control-DualSensitive-Mod_Binaries.zip
-          installer/Control-DualSensitive-Mod_Setup.exe
+        files: installer/Control-DualSensitive-Mod_Setup.exe
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
