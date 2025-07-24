@@ -38,9 +38,26 @@ jobs:
       run: |
         & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\ControlDSModInstaller.iss
 
-    - name: Upload Installer
+    - name: Upload Installer EXE
       uses: actions/upload-artifact@v4
       with:
-        name: DualSensitive-Mod-Installer
+        name: Control-DualSensitive-Mod_Setup
         path: installer/Control-DualSensitive-Mod_Setup.exe
+
+    - name: Prepare Manual Install ZIP
+      run: |
+        mkdir -p manual-install/plugins/DualSensitive
+        cp installer/files/xinput1_4.dll manual-install/
+        cp installer/files/dualsense-mod.ini manual-install/plugins/
+        cp installer/files/dualsense-mod.dll manual-install/plugins/
+        cp installer/files/dualsensitive-service.exe manual-install/plugins/DualSensitive/
+        cp installer/files/launch-service.vbs manual-install/plugins/DualSensitive/
+        cd manual-install
+        zip -r ../Control-DualSensitive-Mod_Manual.zip .
+
+    - name: Upload Manual Install ZIP
+      uses: actions/upload-artifact@v4
+      with:
+        name: Control-DualSensitive-Mod_Manual
+        path: Control-DualSensitive-Mod_Manual.zip
 
