@@ -41,25 +41,23 @@ jobs:
     - name: Upload Installer EXE
       uses: actions/upload-artifact@v4
       with:
-        name: Control-DualSensitive-Mod_Setup.exe
-        path: installer/Control-DualSensitive-Mod_Setup.exe
+        files: Control-DualSensitive-Mod_Setup.exe
         if-no-files-found: error
 
     - name: Prepare Manual Install ZIP
       run: |
-        mkdir -p manual-install/plugins/DualSensitive
-        copy installer/files/xinput1_4.dll manual-install/
-        copy installer/files/dualsense-mod.ini manual-install/plugins/
-        copy installer/files/dualsense-mod.dll manual-install/plugins/
-        copy installer/files/dualsensitive-service.exe manual-install/plugins/DualSensitive/
-        copy installer/files/launch-service.vbs manual-install/plugins/DualSensitive/
-        Compress-Archive -Path manual-install/* -DestinationPath Control-DualSensitive-Mod_Manual.zip
+        mkdir -p manual-install\plugins\DualSensitive
+        copy installer\files\xinput1_4.dll manual-install\
+        copy installer\files\dualsense-mod.ini manual-install\plugins\
+        copy installer\files\dualsense-mod.dll manual-install\plugins\
+        copy installer\files\dualsensitive-service.exe manual-install\plugins\DualSensitive\
+        copy installer\files\launch-service.vbs manual-install\plugins\DualSensitive\
+        Compress-Archive -Path manual-install\\* -DestinationPath Control-DualSensitive-Mod_Manual.zip
       shell: pwsh
 
     - name: Upload Manual Install ZIP
       uses: actions/upload-artifact@v4
       with:
-        name: Control-DualSensitive-Mod_Manual.zip
-        path: Control-DualSensitive-Mod_Manual.zip
+        files: Control-DualSensitive-Mod_Manual.zip
         if-no-files-found: error
 
