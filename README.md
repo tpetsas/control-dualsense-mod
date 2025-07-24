@@ -1,4 +1,7 @@
 # control-dualsense-mod
+
+[installer-link]: https://github.com/tpetsas/control-dualsense-mod/releases/download/v2.2.0/Control-DualSensitive-Mod_Setup.exe 
+
 A mod for Control Ultimate Edition that adds DualSense adaptive trigger settings for all Service Weapon forms
 
 Built with the tools and technologies:
@@ -17,6 +20,7 @@ Built with the tools and technologies:
 This mod allows players with a Playstation 5 DualSense controller to play Control Ultimate Edition with adaptive triggers. The adaptive triggers are assigned based on the current weapon form.
 
 Mod Page: [**Nexus Mods — Control DualSense Mod**](https://www.nexusmods.com/control/mods/108/)
+Installer: [Control-DualSensitive-Mod_Setup.exe][installer-link]
 
 ### Mod Showcase
 
@@ -45,8 +49,7 @@ This mod adds the following features:
 
 > **Note:** For the older version of the mod ([Control DualSense Mod v1.0.0]) that requires the [DSX] third party app to work, refer to these instructions: [![Control DualSense Mod Old](https://img.shields.io/badge/control--dualsense--mod-version%201.0.0-red)](https://github.com/tpetsas/control-dualsense-mod/blob/main/README.dsx.md)
 
-[installer-link]: http://TBD
-[Control DualSense Mod v2.2.0]: https://github.com/tpetsas/control-dualsense-mod/releases/tag/2.2.0
+[Control DualSense Mod v2.2.0]: https://github.com/tpetsas/control-dualsense-mod/releases/tag/v2.2.0
 
 ### :exclamation: Windows SmartScreen or Antivirus Warning
 
@@ -59,6 +62,14 @@ This is a known limitation affecting many **open-source projects** that don't us
 - It **does not contain malware or spyware**.
 - Some antivirus programs may incorrectly flag unsigned software — these are known as **false positives**. After submission of the installer to VirusTotal, 5 out of 72 AV vendors flagged it (see [VT report]). All those vendors have been notified and my binary has been submitted to them for whitelising.
 
+**1. Download the **[Control-DualSensitive-Mod_Setup.exe][installer-link]** from the latest version ([Control DualSense Mod v2.2.0])**
+
+
+
+**2. Double click the installer to run it:**
+
+<img width="491" alt="setup" src="https://github.com/user-attachments/assets/02d96c32-27cb-49e4-baf3-782187208b0b" />
+
 You may safely proceed by clicking:
 
 > **More info → Run anyway** (for SmartScreen)  
@@ -70,13 +81,6 @@ You may safely proceed by clicking:
 
 <img width="476" height="707" alt="properties-unblock" src="https://github.com/user-attachments/assets/2943fa24-bd10-4d0a-9429-af231386bc00" />
 
-**1. Download the **[Control-DualSensitive-Mod_Setup.exe][installer-link]** from the latest version ([Control DualSense Mod v2.2.0])**
-
-
-
-**2. Double click the installer to run it:**
-
-<img width="491" alt="setup" src="https://github.com/user-attachments/assets/02d96c32-27cb-49e4-baf3-782187208b0b" />
 
 
 
