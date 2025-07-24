@@ -20,7 +20,8 @@ Built with the tools and technologies:
 This mod allows players with a Playstation 5 DualSense controller to play Control Ultimate Edition with adaptive triggers. The adaptive triggers are assigned based on the current weapon form.
 
 Mod Page: [**Nexus Mods — Control DualSense Mod**](https://www.nexusmods.com/control/mods/108/)
-Installer: [Control-DualSensitive-Mod_Setup.exe][installer-link]
+
+Installer: [**Control-DualSensitive-Mod_Setup.exe**][installer-link]
 
 ### Mod Showcase
 
