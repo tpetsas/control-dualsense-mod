@@ -1,0 +1,78 @@
+name: Build and Package Mod
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v3
+      with:
+        submodules: recursive
+
+    - name: Install Inno Setup
+      run: choco install innosetup -y
+
+    - name: Configure CMake
+      run: |
+        mkdir build
+        cd build
+        cmake .. -G "Visual Studio 17 2022"
+
+    - name: Build Project (Release)
+      run: |
+        cd build
+        cmake --build . --config Release
+
+    - name: Copy Built Files to Installer Directory
+      run: |
+        copy build\Release\dualsense-mod.dll installer\files\
+        copy build\Release\dualsensitive-service.exe installer\files\
+
+    - name: Build Inno Setup Installer
+      run: |
+        & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\ControlDSModInstaller.iss
+
+    - name: Upload Installer EXE
+      uses: actions/upload-artifact@v4
+      with:
+        name: Installer
+        path: installer/Control-DualSensitive-Mod_Setup.exe
+        if-no-files-found: error
+
+    - name: Prepare Manual Install ZIP
+      run: |
+        mkdir -p manual-install\plugins\DualSensitive
+        copy installer\files\xinput1_4.dll manual-install\
+        copy installer\files\dualsense-mod.ini manual-install\plugins\
+        copy installer\files\dualsense-mod.dll manual-install\plugins\
+        copy installer\files\dualsensitive-service.exe manual-install\plugins\DualSensitive\
+        copy installer\files\launch-service.vbs manual-install\plugins\DualSensitive\
+        Compress-Archive -Path manual-install\\* -DestinationPath Control-DualSensitive-Mod_Binaries.zip
+      shell: pwsh
+
+    - name: Upload Manual Install ZIP
+      uses: actions/upload-artifact@v4
+      with:
+        name: Binaries
+        path: Control-DualSensitive-Mod_Binaries.zip
+        if-no-files-found: error
+
+    - name: Upload to GitHub Release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: ${{ github.ref_name }}
+        name: "Control DualSense Mod ${{ github.ref_name }}"
+        files: installer/Control-DualSensitive-Mod_Setup.exe
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
