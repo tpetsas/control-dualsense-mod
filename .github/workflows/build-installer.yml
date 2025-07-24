@@ -2,8 +2,12 @@ name: Build and Package Mod
 
 on:
   push:
-    branches: [ installer ]
+    tags:
+      - 'v*'
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -53,13 +57,22 @@ jobs:
         copy installer\files\dualsense-mod.dll manual-install\plugins\
         copy installer\files\dualsensitive-service.exe manual-install\plugins\DualSensitive\
         copy installer\files\launch-service.vbs manual-install\plugins\DualSensitive\
-        Compress-Archive -Path manual-install\\* -DestinationPath Control-DualSensitive-Mod_Manual.zip
+        Compress-Archive -Path manual-install\\* -DestinationPath Control-DualSensitive-Mod_Binaries.zip
       shell: pwsh
 
     - name: Upload Manual Install ZIP
       uses: actions/upload-artifact@v4
       with:
         name: Binaries
-        path: Control-DualSensitive-Mod_Manual.zip
+        path: Control-DualSensitive-Mod_Binaries.zip
         if-no-files-found: error
+
+    - name: Upload to GitHub Release
+      uses: softprops/action-gh-release@v2
+      with:
+        files: |
+          Control-DualSensitive-Mod_Binaries.zip
+          installer/Control-DualSensitive-Mod_Setup.exe
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
