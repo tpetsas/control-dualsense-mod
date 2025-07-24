@@ -41,6 +41,7 @@ This mod adds the following features:
 ## Installation
 
 [Control DualSense Mod v1.0.0]: https://github.com/tpetsas/control-dualsense-mod/releases/tag/1.0.0
+[VT report]: https://www.virustotal.com/gui/file/8d7347f6d1db1c184ffee92536669f216c40d7fb551fa86d3519bade2bfcb367/detection
 
 > **Note:** For the older version of the mod ([Control DualSense Mod v1.0.0]) that requires the [DSX] third party app to work, refer to these instructions: [![Control DualSense Mod Old](https://img.shields.io/badge/control--dualsense--mod-version%201.0.0-red)](https://github.com/tpetsas/control-dualsense-mod/blob/main/README.dsx.md)
 
@@ -56,7 +57,7 @@ This is a known limitation affecting many **open-source projects** that don't us
 #### :white_check_mark: What you should know:
 - This mod is **open source**, and you can inspect the full source code here on GitHub.
 - It **does not contain malware or spyware**.
-- Some antivirus programs may incorrectly flag unsigned software — these are known as **false positives**.
+- Some antivirus programs may incorrectly flag unsigned software — these are known as **false positives**. After submission of the installer to VirusTotal, 5 out of 72 AV vendors flagged it (see [VT report]). All those vendors have been notified and my binary has been submitted to them for whitelising.
 
 You may safely proceed by clicking:
 
