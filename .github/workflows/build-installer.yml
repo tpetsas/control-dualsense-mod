@@ -42,7 +42,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: Installer
-        path: Control-DualSensitive-Mod_Setup.exe
+        path: installer/Control-DualSensitive-Mod_Setup.exe
         if-no-files-found: error
 
     - name: Prepare Manual Install ZIP
