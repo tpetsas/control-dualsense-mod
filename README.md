@@ -104,6 +104,28 @@ Now, you can experience the mod by just running the game.
 
 <img width="491" height="382" alt="add-to-steam" src="https://github.com/user-attachments/assets/41c26d01-0865-4c96-8841-5001c9c7d557" />
 
+### Manual Installation
+
+[proc-error-comment]: https://www.nexusmods.com/control/mods/108?tab=posts#comment-content-157259677
+[binaries-link]: https://github.com/tpetsas/control-dualsense-mod/releases/download/v2.2.0/Control-DualSensitive-Mod_Binaries.zip
+
+Someone got this error using the installer: `Error Runtime error (at 33:71): Could not call proc.` ([see comment][proc-error-comment]). While, I don't have a way to replicate it unfrortunately so I can solve it, here are the steps to install the mod manually if you experience any similar issues with the installer:
+
+Download the mod binaries ZIP file here: [Control-DualSensitive-Mod_Binaries.zip][binaries-link] and locate the directory of the game (for example for Steam this should be: `C:\Program Files (x86)\Steam\steamapps\common\Control`). Extract all the files straight in this directory so that the directory structure looks like:
+
+```
+Control
+    xinput1_4.dll
+    plugins/
+        dualsense-mod.ini
+        dualsense-mod.dll
+        DualSensitive/
+            dualsensitive-service.exe
+            launch-service.vbs
+```
+Unblock the `dualsensitive-service.exe`:
+
+Right-click the `Control/plugins/DualSensitive/dualsensitive-service.exe` and select **Properties → Check “Unblock” → Apply**
 
 ## Uninstallation
 
