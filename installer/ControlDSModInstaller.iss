@@ -91,6 +91,12 @@ var
   DisclaimerPage: TWizardPage;
   //DisclaimerAccepted: TNewCheckBox;
 
+procedure CurPageChangedCheck(Sender: TObject);
+begin
+  DisclaimerAccepted := TNewCheckBox(Sender).Checked;
+  WizardForm.NextButton.Enabled := DisclaimerAccepted;
+end;
+
 procedure CreateDisclaimerPage();
 var
   Memo: TMemo;
@@ -133,7 +139,7 @@ begin
   DisclaimerCheckBox.Width := DisclaimerPage.Surface.Width;
   DisclaimerCheckBox.Height := ScaleY(20);
   DisclaimerCheckBox.Caption := 'I have read and accept the disclaimer above.';
-  //DisclaimerCheckBox.OnClick := @CurPageChangedCheck;
+  DisclaimerCheckBox.OnClick := @CurPageChangedCheck;
 
   WizardForm.NextButton.Enabled := False;
 end;
@@ -150,13 +156,6 @@ begin
   if Assigned(DisclaimerPage) and (CurPageID = DisclaimerPage.ID) then
     WizardForm.NextButton.Enabled := DisclaimerAccepted;
 end;
-
-procedure CurPageChangedCheck(Sender: TObject);
-begin
-  DisclaimerAccepted := TNewCheckBox(Sender).Checked;
-  WizardForm.NextButton.Enabled := DisclaimerAccepted;
-end;
-
 
 var
   SteamCheckbox, EpicCheckbox, ManualCheckbox: TCheckBox;
@@ -473,7 +472,6 @@ var
   ThankYouLabel, WebsiteLabel: TNewStaticText;
 begin
   CreateDisclaimerPage();
-  DisclaimerCheckBox.OnClick := @CurPageChangedCheck;
   MyPage := CreateCustomPage(wpSelectDir, 'Choose Game Versions', 'Select which game versions to install the mod for.');
 
   IsSteamInstalled := FileExistsInSteam();
