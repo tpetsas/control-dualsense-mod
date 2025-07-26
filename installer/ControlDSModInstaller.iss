@@ -14,10 +14,10 @@
 AppId={#AppId}
 AppName={#ModName}
 AppVersion=2.2
-VersionInfoVersion=2.2.1.0
-VersionInfoTextVersion=2.2.1.0
-VersionInfoProductVersion=2.2.1.0
-DefaultDirName={pf}\DualSensitive\{#ModName}
+VersionInfoVersion=2.2.2.0
+VersionInfoTextVersion=2.2.2.0
+VersionInfoProductVersion=2.2.2.0
+DefaultDirName={autopf}\DualSensitive\{#ModName}
 DefaultGroupName={#ModName}
 OutputDir=.
 OutputBaseFilename=Control-DualSensitive-Mod_Setup
@@ -34,13 +34,7 @@ DisableProgramGroupPage=yes
 InstallInfoLine1=Install Control — DualSensitive Mod for one or more game versions below.
 InstallInfoLine2=You can select Steam, Epic, or a custom installation path. Leave unchecked any
 InstallInfoLine3=version you don't want to mod.
-
-;InstallInfoLine1=Setup will install Control - DualSensitive Mod into the following folder.
-;InstallInfoLine2=The components to be installed include: the Control Plugin Loader (xinput1_4.dll),
-;InstallInfoLine3=the dualsense mod (dualsense-mod.dll), and the dualsensitive service.
 InstallInfoLine4=To continue, click Next. If you would like to select a different directory, click Browse.
-
-//InstallInfoLine2=The main install directory is used only for uninstall-related files.
 
 [Files]
 Source: "files\{#ProxyDLL}"; DestDir: "{code:GetInstallPath}"; Flags: ignoreversion
@@ -86,15 +80,20 @@ Type: dirifempty; Name: "{app}"
 [Code]
 var
   DisclaimerCheckBox: TNewCheckBox;
-  //DisclaimerPage: TInputQueryWizardPage;
   DisclaimerAccepted: Boolean;
   DisclaimerPage: TWizardPage;
-  //DisclaimerAccepted: TNewCheckBox;
+  SteamCheckbox, EpicCheckbox, ManualCheckbox: TCheckBox;
+  ManualPathEdit: TEdit;
+  ManualBrowseButton: TButton;
+  EpicInstallPath: string;
+  SelectedInstallPath: string;
+  MyPage: TWizardPage;
 
 procedure CurPageChangedCheck(Sender: TObject);
 begin
   DisclaimerAccepted := TNewCheckBox(Sender).Checked;
-  WizardForm.NextButton.Enabled := DisclaimerAccepted;
+  if not WizardSilent and Assigned(WizardForm.NextButton) then
+    WizardForm.NextButton.Enabled := DisclaimerAccepted;
 end;
 
 procedure CreateDisclaimerPage();
@@ -133,15 +132,19 @@ begin
 
   // Create and position the checkbox under the memo
   DisclaimerCheckBox := TNewCheckBox.Create(DisclaimerPage);
-  DisclaimerCheckBox.Parent := DisclaimerPage.Surface;
-  DisclaimerCheckBox.Top := Memo.Top + Memo.Height + ScaleY(8);
-  DisclaimerCheckBox.Left := ScaleX(0);
-  DisclaimerCheckBox.Width := DisclaimerPage.Surface.Width;
-  DisclaimerCheckBox.Height := ScaleY(20);
-  DisclaimerCheckBox.Caption := 'I have read and accept the disclaimer above.';
-  DisclaimerCheckBox.OnClick := @CurPageChangedCheck;
+  if Assigned(DisclaimerCheckBox) then
+  begin
+    DisclaimerCheckBox.Parent := DisclaimerPage.Surface;
+    DisclaimerCheckBox.Top := Memo.Top + Memo.Height + ScaleY(8);
+    DisclaimerCheckBox.Left := ScaleX(0);
+    DisclaimerCheckBox.Width := DisclaimerPage.Surface.Width;
+    DisclaimerCheckBox.Height := ScaleY(20);
+    DisclaimerCheckBox.Caption := 'I have read and accept the disclaimer above.';
+    DisclaimerCheckBox.OnClick := @CurPageChangedCheck;
+  end;
 
-  WizardForm.NextButton.Enabled := False;
+  if not WizardSilent and Assigned(WizardForm.NextButton) then
+    WizardForm.NextButton.Enabled := False;
 end;
 
 function ShouldSkipPage(PageID: Integer): Boolean;
@@ -153,17 +156,9 @@ end;
 
 procedure CurPageChanged(CurPageID: Integer);
 begin
-  if Assigned(DisclaimerPage) and (CurPageID = DisclaimerPage.ID) then
+  if not WizardSilent and Assigned(WizardForm.NextButton) and Assigned(DisclaimerPage) and (CurPageID = DisclaimerPage.ID) then
     WizardForm.NextButton.Enabled := DisclaimerAccepted;
 end;
-
-var
-  SteamCheckbox, EpicCheckbox, ManualCheckbox: TCheckBox;
-  ManualPathEdit: TEdit;
-  ManualBrowseButton: TButton;
-  EpicInstallPath: string;
-  SelectedInstallPath: string;
-  MyPage: TWizardPage;
 
 procedure BrowseManualPath(Sender: TObject);
 var Dir: string;
@@ -269,7 +264,7 @@ end;
 
 function FileExistsInSteam(): Boolean;
 var
-  SteamPath, VdfPath, GamePath: string;
+  SteamPath, GamePath: string;
 begin
   Result := False;
   if RegQueryStringValue(HKCU, 'Software\Valve\Steam', 'SteamPath', SteamPath) then
@@ -376,7 +371,6 @@ begin
 end;
 
 var
-  DeleteLogsPage: TWizardPage;
   DeleteLogsCheckbox: TNewCheckBox;
   LogPaths: TStringList;
 
@@ -392,7 +386,7 @@ end;
 
 procedure DetectLogFiles();
 var
-  SteamPath, EpicPath, ManualPath: string;
+  SteamPath: string;
 
 begin
   if RegQueryStringValue(HKCU, 'Software\Valve\Steam', 'SteamPath', SteamPath) then
