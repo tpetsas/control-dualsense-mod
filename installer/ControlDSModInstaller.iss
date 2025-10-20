@@ -88,6 +88,33 @@ var
   EpicInstallPath: string;
   SelectedInstallPath: string;
   MyPage: TWizardPage;
+  FinishExtrasCreated: Boolean;
+  SteamInstallPath: string;
+
+
+procedure SafeSetParent(Control: TControl; ParentCtrl: TWinControl);
+begin
+  // Always set Parent as the first thing after create
+  Control.Parent := ParentCtrl;
+end;
+
+// Detect Windows 11+ by build number (Win11 starts at build 22000)
+function IsWindows11OrNewer: Boolean;
+var
+  s: string;
+  build: Integer;
+begin
+  // Read build number; Win11 starts at build 22000
+  s := '';
+  if not RegQueryStringValue(HKLM,
+    'SOFTWARE\Microsoft\Windows NT\CurrentVersion', 'CurrentBuildNumber', s) then
+  begin
+    RegQueryStringValue(HKLM,
+      'SOFTWARE\Microsoft\Windows NT\CurrentVersion', 'CurrentBuild', s);
+  end;
+  build := StrToIntDef(s, 0);
+  Result := (build >= 22000);
+end;
 
 procedure CurPageChangedCheck(Sender: TObject);
 begin
@@ -107,12 +134,13 @@ begin
     'Please read and accept the following disclaimer before continuing.'
   );
 
-  Memo := TMemo.Create(DisclaimerPage);
+  // Owner MUST be WizardForm; parent is the page surface
+  Memo := TMemo.Create(WizardForm);                // was: TMemo.Create(DisclaimerPage)
   Memo.Parent := DisclaimerPage.Surface;
   Memo.Left := ScaleX(0);
   Memo.Top := ScaleY(0);
-  Memo.Width := DisclaimerPage.Surface.Width;  // Full width
-  Memo.Height := ScaleY(150);  // Adjust height as needed
+  Memo.Width := DisclaimerPage.Surface.Width;
+  Memo.Height := ScaleY(150);
   Memo.ReadOnly := True;
   Memo.ScrollBars := ssVertical;
   Memo.WordWrap := True;
@@ -130,8 +158,8 @@ begin
 '' + #13#10 +
 'Created by Thanos Petsas - https://thanasispetsas.com';
 
-  // Create and position the checkbox under the memo
-  DisclaimerCheckBox := TNewCheckBox.Create(DisclaimerPage);
+  // Same here: owner = WizardForm
+  DisclaimerCheckBox := TNewCheckBox.Create(WizardForm);  // was: TNewCheckBox.Create(DisclaimerPage)
   if Assigned(DisclaimerCheckBox) then
   begin
     DisclaimerCheckBox.Parent := DisclaimerPage.Surface;
@@ -147,6 +175,7 @@ begin
     WizardForm.NextButton.Enabled := False;
 end;
 
+
 function ShouldSkipPage(PageID: Integer): Boolean;
 begin
   Result := False;
@@ -154,10 +183,52 @@ begin
     Result := DisclaimerAccepted;
 end;
 
-procedure CurPageChanged(CurPageID: Integer);
+procedure OnVisitWebsiteClick(Sender: TObject);
+var
+  ErrCode: Integer;
 begin
-  if not WizardSilent and Assigned(WizardForm.NextButton) and Assigned(DisclaimerPage) and (CurPageID = DisclaimerPage.ID) then
+  ShellExec('open', 'https://www.dualsensitive.com/', '', '', SW_SHOW, ewNoWait, ErrCode);
+end;
+
+procedure CurPageChanged(CurPageID: Integer);
+var
+  ThankYouLabel, WebsiteLabel: TNewStaticText;
+  FS: TFontStyles;
+begin
+  // keep the disclaimer Next-button gating
+  if not WizardSilent and Assigned(WizardForm.NextButton) and Assigned(DisclaimerPage) and
+     (CurPageID = DisclaimerPage.ID) then
     WizardForm.NextButton.Enabled := DisclaimerAccepted;
+
+  // Build the Finished-page extras only when that page is shown (Win10-safe)
+  if (CurPageID = wpFinished) and (not FinishExtrasCreated) then
+  begin
+    // Thank-you text
+    ThankYouLabel := TNewStaticText.Create(WizardForm);
+    ThankYouLabel.Parent := WizardForm.FinishedPage;  // standard page: no .Surface
+    ThankYouLabel.Caption := #13#10 +
+      'Thank you for installing the Control — DualSensitive Mod!' + #13#10 +
+      'For news and updates, please visit:';
+    ThankYouLabel.Top := WizardForm.FinishedLabel.Top + WizardForm.FinishedLabel.Height + ScaleY(16);
+    ThankYouLabel.Left := WizardForm.FinishedLabel.Left;
+    ThankYouLabel.AutoSize := True;
+
+    // Clickable link
+    WebsiteLabel := TNewStaticText.Create(WizardForm);
+    WebsiteLabel.Parent := WizardForm.FinishedPage;
+    WebsiteLabel.Caption := 'https://www.dualsensitive.com/';
+    WebsiteLabel.Font.Color := clBlue;
+    FS := WebsiteLabel.Font.Style;     // Include requires a variable set
+    Include(FS, fsUnderline);
+    WebsiteLabel.Font.Style := FS;
+    WebsiteLabel.Cursor := crHand;
+    WebsiteLabel.OnClick := @OnVisitWebsiteClick;
+    WebsiteLabel.Top := ThankYouLabel.Top + ThankYouLabel.Height + ScaleY(8);
+    WebsiteLabel.Left := ThankYouLabel.Left;
+    WebsiteLabel.AutoSize := True;
+
+    FinishExtrasCreated := True;
+  end;
 end;
 
 procedure BrowseManualPath(Sender: TObject);
@@ -179,30 +250,327 @@ end;
 
 function GetInstallPath(Default: string): string;
 begin
-  //Result := ExpandConstant('{app}')
-  Result := SelectedInstallPath;
+if SelectedInstallPath <> '' then
+    Result := SelectedInstallPath
+else if Assigned(ManualPathEdit) and (ManualPathEdit.Text <> '') then
+    Result := ManualPathEdit.Text
+else
+    // OK to expand these early
+    Result := ExpandConstant('{autopf}\DualSensitive\Control — DualSensitive Mod');
 end;
 
 
 function GetSchedTaskCommand(Param: string): string;
 var
-  vbsPath, exePath, fullCmd: string;
+  vbsPath, exePath: string;
 begin
   // Paths to launch-service.vbs and dualsensitive-service.exe
   vbsPath := GetInstallPath('') + '\plugins\DualSensitive\launch-service.vbs';
   exePath := GetInstallPath('') + '\plugins\DualSensitive\dualsensitive-service.exe';
 
+  // If somehow still empty, bail out with a no-op to avoid runtime failure
+  if (vbsPath = '\plugins\DualSensitive\launch-service.vbs') or
+     (exePath = '\plugins\DualSensitive\dualsensitive-service.exe') then
+  begin
+    Result := '/Create /TN "DualSensitive Service (invalid path skipped)" /TR "cmd.exe /c exit 0" /SC ONCE /ST 00:00 /RL HIGHEST /F';
+    exit;
+  end;
+
   // Escape quotes for schtasks + Inno
-  fullCmd :=
+  Result :=
     '/Create /TN "DualSensitive Service" ' +
     '/TR "wscript.exe \"' + vbsPath + '\" \"' + exePath + '\"" ' +
     '/SC ONCE /ST 00:00 /RL HIGHEST /F';
 
-  Log('Scheduled Task Command: ' + fullCmd);
+  Log('Scheduled Task Command: ' + Result);
   // Optional: Show dialog during install for debug
   // MsgBox('Scheduled Task Command:'#13#10 + fullCmd, mbInformation, MB_OK);
+end;
 
-  Result := fullCmd;
+// ---- helpers (TOP-LEVEL, place above FileExistsInSteam) ----
+
+function NormalizeLibraryPath(P: string): string;
+var
+  i: Integer;
+begin
+  // strip outer quotes
+  if (Length(P) >= 2) and (P[1] = '"') and (P[Length(P)] = '"') then
+    P := Copy(P, 2, Length(P) - 2);
+  // remove any stray trailing quote
+  if (Length(P) > 0) and (P[Length(P)] = '"') then
+    Delete(P, Length(P), 1);
+  // unescape \\ -> \
+  i := 1;
+  while i < Length(P) do
+    if (P[i] = '\') and (P[i + 1] = '\') then
+      Delete(P, i, 1)
+    else
+      Inc(i);
+  // normalize forward slashes
+  for i := 1 to Length(P) do
+    if P[i] = '/' then P[i] := '\';
+  Result := Trim(P);
+end;
+
+
+// find next " from StartAt (1-based), safe on out-of-range StartAt
+function FindNextQuote(const S: string; StartAt: Integer): Integer;
+var
+  i, L: Integer;
+begin
+  L := Length(S);
+  if (L = 0) or (StartAt < 1) or (StartAt > L) then
+  begin
+    Result := 0;
+    Exit;
+  end;
+
+  for i := StartAt to L do
+    if S[i] = '"' then
+    begin
+      Result := i;
+      Exit;
+    end;
+
+  Result := 0;
+end;
+
+// Extract after ':' and strip quotes/commas  → for JSON-ish lines
+function ExtractJsonValue(Line: string): string;
+var
+  i: Integer;
+begin
+  Result := '';
+  i := Pos(':', Line);
+  if i > 0 then
+  begin
+    Result := Trim(Copy(Line, i + 1, MaxInt));
+    if (Length(Result) > 0) and (Result[1] = '"') then
+    begin
+      Delete(Result, 1, 1);
+      i := Pos('"', Result);
+      if i > 0 then
+        Result := Copy(Result, 1, i - 1);
+    end;
+    // remove trailing comma if any
+    if (Length(Result) > 0) and (Result[Length(Result)] = ',') then
+      Delete(Result, Length(Result), 1);
+  end;
+end;
+
+
+function ExtractVdfPathValue(const Line: string): string;
+var
+  p, q1, q2: Integer;
+  val: string;
+begin
+  Result := '';
+  p := Pos('"path"', LowerCase(Line));
+  if p = 0 then Exit;
+
+  // find first quote after "path"
+  q1 := FindNextQuote(Line, p + 6);
+  if q1 = 0 then Exit;
+  q2 := FindNextQuote(Line, q1 + 1);
+  if q2 = 0 then Exit;
+
+  val := Copy(Line, q1 + 1, q2 - q1 - 1);
+  Result := NormalizeLibraryPath(val);
+end;
+
+function CheckRoot(const steamappsRoot: string; var OutDir: string): Boolean;
+var
+  commonDir, gameDir: string;
+begin
+  Result := False;
+
+  // 1) Look for Control folders directly
+  commonDir := AddBackslash(steamappsRoot) + 'common';
+  gameDir   := AddBackslash(commonDir) + 'Control';
+  if DirExists(gameDir) then
+  begin
+    OutDir := gameDir;
+    Result := True
+    Exit;
+  end;
+
+  gameDir := AddBackslash(commonDir) + 'Control Ultimate Edition';
+  if DirExists(gameDir) then
+  begin
+    OutDir := gameDir;
+    Result := True
+    Exit;
+  end;
+
+  // 2) If appmanifest exists, treat as a library and fall back to \common
+  if FileExists(AddBackslash(steamappsRoot) + 'appmanifest_870780.acf') then
+  begin
+    if DirExists(AddBackslash(commonDir) + 'Control') then
+      OutDir := AddBackslash(commonDir) + 'Control'
+    else
+      OutDir := commonDir;  // let user pick if subfolder varies
+    Result := True
+    Exit;
+  end;
+end;
+
+
+function TryFindControlByHeuristic(var OutDir: string): Boolean;
+var
+  d: Integer;
+  root: string;
+begin
+  Result := False;
+  OutDir := '';
+
+  // Scan typical Steam layouts on fixed letters (C..Z)
+  for d := Ord('C') to Ord('Z') do
+  begin
+    // ...\Steam\steamapps
+    root := Chr(d) + ':\Steam\steamapps';
+    if DirExists(root) and CheckRoot(root, OutDir) then
+    begin
+      Result := True;
+      Exit;
+    end;
+
+    // ...\SteamLibrary\steamapps
+    root := Chr(d) + ':\SteamLibrary\steamapps';
+    if DirExists(root) and CheckRoot(root, OutDir) then
+    begin
+      Result := True;
+      Exit;
+    end;
+  end;
+end;
+
+
+function FileExistsInSteam(): Boolean;
+var
+  SteamPath, VdfPath1, VdfPath2: string;
+  Lines: TArrayOfString;
+  i, j, n: Integer;
+  LibRoots: array of string;
+  Root, GameDir, GameExe: string;
+  ExistsAlready: Boolean;
+begin
+  Result := False;
+  SteamInstallPath := '';
+
+  try
+    if RegQueryStringValue(HKCU, 'Software\Valve\Steam', 'SteamPath', SteamPath) then
+    begin
+      // add default root
+      SetArrayLength(LibRoots, 1);
+      LibRoots[0] := SteamPath;
+
+      // parse both possible locations of libraryfolders.vdf
+      VdfPath1 := AddBackslash(SteamPath) + 'steamapps\libraryfolders.vdf';
+      VdfPath2 := AddBackslash(SteamPath) + 'config\libraryfolders.vdf';
+
+      if LoadStringsFromFile(VdfPath1, Lines) and (GetArrayLength(Lines) > 0) then
+        for i := 0 to GetArrayLength(Lines) - 1 do
+          try
+              if Pos('"path"', Lines[i]) > 0 then
+              begin
+                Root := ExtractVdfPathValue(Lines[i]);   // now bullet-proof
+                if Root <> '' then
+                begin
+                  ExistsAlready := False;
+                  n := GetArrayLength(LibRoots);
+                  for j := 0 to n - 1 do
+                    if CompareText(LibRoots[j], Root) = 0 then begin ExistsAlready := True; Break; end;
+                  if not ExistsAlready then
+                  begin
+                    SetArrayLength(LibRoots, n + 1);
+                    LibRoots[n] := Root;
+                    Log('Steam: library from VDF = ' + Root);
+                  end;
+                end;
+                end;
+            except
+                Log('Steam exception while parsing line: ' + lines[i]);
+          end;
+
+      if LoadStringsFromFile(VdfPath2, Lines) and (GetArrayLength(Lines) > 0) then
+        for i := 0 to GetArrayLength(Lines) - 1 do
+          try
+              if Pos('"path"', Lines[i]) > 0 then
+              begin
+                Root := ExtractVdfPathValue(Lines[i]);
+                if Root <> '' then
+                begin
+                  ExistsAlready := False;
+                  n := GetArrayLength(LibRoots);
+                  for j := 0 to n - 1 do
+                    if CompareText(LibRoots[j], Root) = 0 then begin ExistsAlready := True; Break; end;
+                  if not ExistsAlready then
+                  begin
+                    SetArrayLength(LibRoots, n + 1);
+                    LibRoots[n] := Root;
+                    Log('Steam: library from VDF = ' + Root);
+                  end;
+                end;
+                end;
+            except
+                Log('Steam exception while parsing line: ' + lines[i]);
+          end;
+
+      // probe each library
+      for i := 0 to GetArrayLength(LibRoots) - 1 do
+      begin
+        Log('Steam: probing library "' + LibRoots[i] + '"');
+
+        // try common folder names
+        GameDir := AddBackslash(LibRoots[i]) + 'steamapps\common\Control';
+        GameExe := GameDir + '\Control.exe';
+        if FileExists(GameExe) or DirExists(GameDir) then
+        begin
+          SteamInstallPath := GameDir;
+          Result := True;
+          Log('Steam: found Control at ' + SteamInstallPath);
+          Exit;
+        end;
+
+        GameDir := AddBackslash(LibRoots[i]) + 'steamapps\common\Control Ultimate Edition';
+        GameExe := GameDir + '\Control.exe';
+        if FileExists(GameExe) or DirExists(GameDir) then
+        begin
+          SteamInstallPath := GameDir;
+          Result := True;
+          Log('Steam: found Control at ' + SteamInstallPath);
+          Exit;
+        end;
+
+        // fallback: appmanifest for Control (870780)
+        if FileExists(AddBackslash(LibRoots[i]) + 'steamapps\appmanifest_870780.acf') then
+        begin
+          GameDir := AddBackslash(LibRoots[i]) + 'steamapps\common\Control';
+          if DirExists(GameDir) then
+            SteamInstallPath := GameDir
+          else
+            SteamInstallPath := AddBackslash(LibRoots[i]) + 'steamapps\common';
+          Result := True;
+          Log('Steam: found Control via appmanifest at ' + SteamInstallPath);
+          Exit;
+        end;
+      end;
+    end
+    else
+      Log('Steam: SteamPath not found in registry.');
+  except
+    Log('Steam: EXCEPTION while parsing VDF; falling back to drive scan.');
+  end;
+
+  // Final fallback: scan drives for Steam libraries
+  if (not Result) then
+  begin
+    if TryFindControlByHeuristic(SteamInstallPath) then
+    begin
+      Result := True;
+      Log('Steam: heuristic found Control at ' + SteamInstallPath);
+    end;
+  end;
 end;
 
 
@@ -224,10 +592,10 @@ begin
     begin
       if SteamCheckbox.Checked then
       begin
-        if RegQueryStringValue(HKCU, 'Software\Valve\Steam', 'SteamPath', SteamPath) then
-          SelectedInstallPath := SteamPath + '\steamapps\common\Control'
+        if FileExistsInSteam() and (SteamInstallPath <> '') then
+          SelectedInstallPath := SteamInstallPath
         else
-          SelectedInstallPath := ''; // fallback
+          SelectedInstallPath := '';
         Log('Using Steam path: ' + SelectedInstallPath);
       end;
     end;
@@ -262,19 +630,6 @@ begin
   end;
 end;
 
-function FileExistsInSteam(): Boolean;
-var
-  SteamPath, GamePath: string;
-begin
-  Result := False;
-  if RegQueryStringValue(HKCU, 'Software\Valve\Steam', 'SteamPath', SteamPath) then
-  begin
-    GamePath := SteamPath + '\steamapps\common\Control\Control.exe';
-    if FileExists(GamePath) then
-      Result := True;
-  end;
-end;
-
 function StripQuotesAndKeyPrefix(S, Key: string): string;
 var
   i: Integer;
@@ -293,80 +648,6 @@ begin
       Delete(Result, i, 1)
     else
       i := i + 1;
-  end;
-end;
-
-function ExtractJsonValue(Line: string): string;
-var
-  i: Integer;
-begin
-  Result := '';
-  i := Pos(':', Line);
-  if i > 0 then
-  begin
-    Result := Trim(Copy(Line, i + 1, Length(Line)));
-    // Remove surrounding quotes and trailing commas
-    if (Length(Result) >= 2) and (Result[1] = '"') then
-    begin
-      Delete(Result, 1, 1);
-      i := Pos('"', Result);
-      if i > 0 then
-        Result := Copy(Result, 1, i - 1);
-    end;
-  end;
-end;
-
-function FileExistsInEpic(): Boolean;
-var
-  FindRec: TFindRec;
-  ManifestDir, FilePath, Line: string;
-  Lines: TArrayOfString;
-  i: Integer;
-begin
-  Result := False;
-  ManifestDir := 'C:\ProgramData\Epic\EpicGamesLauncher\Data\Manifests';
-
-  Log('Checking if the game is installed via Epic');
-  if DirExists(ManifestDir) then
-  begin
-    if FindFirst(ManifestDir + '\*.item', FindRec) then
-    begin
-      try
-        repeat
-          FilePath := ManifestDir + '\' + FindRec.Name;
-          if LoadStringsFromFile(FilePath, Lines) then
-          begin
-            for i := 0 to GetArrayLength(Lines) - 1 do
-            begin
-              Line := Lines[i];
-              if Pos(Uppercase('"DisplayName": "Control"'), Uppercase(Line)) > 0 then
-              begin
-                // Found the Control manifest
-                Log('Found the Epic Manifest of Control: ' + FilePath);
-                // Now look forward for "InstallLocation"
-                while i < GetArrayLength(Lines) - 1 do
-                begin
-                  i := i + 1;
-                  if Pos('"InstallLocation":', Lines[i]) > 0 then
-                  begin
-                    // Extract value from: "InstallLocation":"C:\\Path\\To\\Control"
-                    // EpicInstallPath := StripQuotesAndKeyPrefix(Lines[i], '');
-                    EpicInstallPath := ExtractJsonValue(Lines[i]);
-                    if EpicInstallPath = '' then
-                        Log('Warning: Epic path was found but empty after parsing');
-                    break;
-                  end;
-                end;
-                Result := True;
-                exit;
-              end;
-            end;
-          end;
-        until not FindNext(FindRec);
-      finally
-        FindClose(FindRec);
-      end;
-    end;
   end;
 end;
 
@@ -389,13 +670,82 @@ var
   SteamPath: string;
 
 begin
-  if RegQueryStringValue(HKCU, 'Software\Valve\Steam', 'SteamPath', SteamPath) then
-    CheckAndAddPath(SteamPath + '\steamapps\common\Control');
+  if (SteamInstallPath <> '') then
+    CheckAndAddPath(SteamInstallPath);
 
   if EpicInstallPath <> '' then
     CheckAndAddPath(EpicInstallPath);
 
   CheckAndAddPath(ExpandConstant('{app}'));
+end;
+
+function FileExistsInEpic(): Boolean;
+var
+  FindRec: TFindRec;
+  ManifestDir, FilePath, InstallLoc: string;
+  Content: AnsiString;
+  startedFind: Boolean;
+begin
+  Result := False;
+  EpicInstallPath := '';
+  startedFind := False;
+
+  try
+    ManifestDir := ExpandConstant('{commonappdata}') +
+                   '\Epic\EpicGamesLauncher\Data\Manifests';
+    Log('Checking if the game is installed via Epic');
+
+    if not DirExists(ManifestDir) then
+      Exit;
+
+    if FindFirst(ManifestDir + '\*.item', FindRec) then
+    begin
+      startedFind := True;
+      repeat
+        FilePath := ManifestDir + '\' + FindRec.Name;
+        try
+          if LoadStringFromFile(FilePath, Content) then
+          begin
+            // case-insensitive search for Control + InstallLocation
+            if (Pos(UpperCase('"DisplayName": "Control"'), UpperCase(Content)) > 0) and
+               (Pos('"InstallLocation":', Content) > 0) then
+            begin
+              // crude extraction: get the value after "InstallLocation":
+              InstallLoc := Copy(Content, Pos('"InstallLocation":', Content) + 18, MaxInt);
+              // strip up to the first quote
+              if Pos('"', InstallLoc) > 0 then
+              begin
+                InstallLoc := Copy(InstallLoc, Pos('"', InstallLoc) + 1, MaxInt);
+                if Pos('"', InstallLoc) > 0 then
+                  InstallLoc := Copy(InstallLoc, 1, Pos('"', InstallLoc) - 1);
+              end;
+              EpicInstallPath := Trim(InstallLoc);
+              Result := EpicInstallPath <> '';
+              if Result then
+              begin
+                Log('Found Epic path: ' + EpicInstallPath);
+                Exit;
+              end;
+            end;
+          end;
+        except
+          Log('Warning: failed to read/parse "' + FilePath + '"; skipping.');
+        end;
+      until not FindNext(FindRec);
+    end;
+  except
+    Log('Warning: exception in FileExistsInEpic(); treating as not installed.');
+    Result := False;
+  end;
+
+  if startedFind then
+  begin
+    try
+      FindClose(FindRec);
+    except
+      { ignore }
+    end;
+  end;
 end;
 
 procedure CreateLogDeletePrompt();
@@ -451,27 +801,53 @@ begin
   end;
 end;
 
-procedure OnVisitWebsiteClick(Sender: TObject);
-var
-    ErrCode: integer;
-begin
-  ShellExec('open', 'https://www.dualsensitive.com/', '', '', SW_SHOW, ewNoWait, ErrCode);
-end;
 
 procedure InitializeWizard;
 var
   InfoLabel1, InfoLabel2, InfoLabel3, InfoLabel4: TLabel;
   IsSteamInstalled, IsEpicInstalled: Boolean;
   CurrentTop: Integer;
-  ThankYouLabel, WebsiteLabel: TNewStaticText;
 begin
+  Log('IW: start');
   CreateDisclaimerPage();
-  MyPage := CreateCustomPage(wpSelectDir, 'Choose Game Versions', 'Select which game versions to install the mod for.');
+  Log('IW: disclaimer page created');
 
-  IsSteamInstalled := FileExistsInSteam();
-  IsEpicInstalled := FileExistsInEpic();
+  MyPage := CreateCustomPage(
+    wpSelectDir,
+    'Choose Game Versions',
+    'Select which game versions to install the mod for.'
+  );
+  Log('IW: custom page created');
 
-  // Info labels
+  // --- Detection (Steam for all; Epic only on Win11+) ---
+
+  Log('IW: steam detection done');
+  try
+    IsSteamInstalled := FileExistsInSteam();
+  except
+    Log('IW: EXCEPTION in FileExistsInSteam; treating as not installed (using manual).');
+    IsSteamInstalled := False;
+  end;
+  //if IsWindows11OrNewer then
+  //begin
+  //  Log('IW: win11+, attempting epic detect');
+    try
+      IsEpicInstalled := FileExistsInEpic();
+    except
+      Log('IW: epic detect raised, treating as not installed');
+      IsEpicInstalled := False;
+    end;
+    Log('IW: epic detection done (win11+)');
+//  end
+//  else
+//  begin
+//    // Win10: do NOT probe Epic; hide the option
+//    IsEpicInstalled := False;
+//    EpicInstallPath := '';
+//    Log('IW: win10, epic hidden');
+//  end;  // <-- CLOSE the else BEFORE building UI
+
+  // --- Build labels (explicitly create them) ---
   InfoLabel1 := TLabel.Create(WizardForm);
   InfoLabel1.Parent := MyPage.Surface;
   InfoLabel1.Top := ScaleY(0);
@@ -499,90 +875,91 @@ begin
 
   CurrentTop := InfoLabel4.Top + ScaleY(24);
 
-  // Steam checkbox
+  // --- Create Manual controls first (robust on Win10) ---
+  try
+    Log('IW: creating Manual checkbox');
+    ManualCheckbox := TCheckBox.Create(WizardForm);
+    ManualCheckbox.Parent := MyPage.Surface;
+    ManualCheckbox.Top := CurrentTop;
+    ManualCheckbox.Left := ScaleX(0);
+    ManualCheckbox.Width := ScaleX(300);
+    ManualCheckbox.Height := ScaleY(20);
+    ManualCheckbox.Caption := 'Install to custom path:';
+    ManualCheckbox.OnClick := @ManualCheckboxClick;
+    ManualCheckbox.Checked := False;  // will uncheck if Steam shows up
+    CurrentTop := CurrentTop + ScaleY(24);
+
+    Log('IW: creating Manual path edit + Browse');
+    ManualPathEdit := TEdit.Create(WizardForm);
+    ManualPathEdit.Parent := MyPage.Surface;
+    ManualPathEdit.Top := CurrentTop;
+    ManualPathEdit.Left := ScaleX(0);
+    ManualPathEdit.Width := ScaleX(300);
+    ManualPathEdit.Height := ScaleY(25);
+    ManualPathEdit.Text := 'C:\Games\Control';
+
+    ManualBrowseButton := TButton.Create(WizardForm);
+    ManualBrowseButton.Parent := MyPage.Surface;
+    ManualBrowseButton.Top := CurrentTop;
+    ManualBrowseButton.Left := ManualPathEdit.Left + ManualPathEdit.Width + ScaleX(8);
+    ManualBrowseButton.Width := ScaleX(75);
+    ManualBrowseButton.Height := ScaleY(25);
+    ManualBrowseButton.Caption := 'Browse...';
+    ManualBrowseButton.OnClick := @BrowseManualPath;
+
+    Log('IW: manual controls created');
+  except
+    Log('IW: ERROR creating manual controls; minimalizing.');
+    if ManualCheckbox = nil then
+    begin
+      ManualCheckbox := TCheckBox.Create(WizardForm);
+      ManualCheckbox.Parent := MyPage.Surface;
+      ManualCheckbox.Top := CurrentTop;
+      ManualCheckbox.Left := ScaleX(0);
+      ManualCheckbox.Caption := 'Install to custom path:';
+      ManualCheckbox.Checked := True;
+    end;
+  end;
+
+  // --- Steam (guarded so a failure doesn't kill the page) ---
   if IsSteamInstalled then
   begin
-    SteamCheckbox := TCheckBox.Create(WizardForm);
-    SteamCheckbox.Parent := MyPage.Surface;
-    SteamCheckbox.Top := CurrentTop;
-    SteamCheckbox.Left := ScaleX(0);
-    SteamCheckbox.Width := ScaleX(300);
-    SteamCheckbox.Height := ScaleY(20);
-    SteamCheckbox.Caption := 'Install for Steam';
-    SteamCheckbox.Checked := True;
-    CurrentTop := CurrentTop + ScaleY(24);
-  end;
+    try
+      Log('IW: creating Steam checkbox (path=' + SteamInstallPath + ')');
+      SteamCheckbox := TCheckBox.Create(WizardForm);
+      SteamCheckbox.Parent := MyPage.Surface;
+      SteamCheckbox.Top := InfoLabel4.Top + ScaleY(24);
+      if Assigned(ManualBrowseButton) then
+        CurrentTop := ManualBrowseButton.Top + ManualBrowseButton.Height + ScaleY(8)
+      else if Assigned(ManualCheckbox) then
+        CurrentTop := ManualCheckbox.Top + ScaleY(28)
+      else
+        CurrentTop := InfoLabel4.Top + ScaleY(24);
+      SteamCheckbox.Top := CurrentTop;
+      SteamCheckbox.Left := ScaleX(0);
+      SteamCheckbox.Width := ScaleX(300);
+      SteamCheckbox.Height := ScaleY(20);
+      SteamCheckbox.Caption := 'Install for Steam';
+      SteamCheckbox.Checked := True;
 
-  // Epic checkbox
-  if IsEpicInstalled then
+      if Assigned(ManualCheckbox) then
+        ManualCheckbox.Checked := False;
+
+      Log('IW: steam checkbox created');
+    except
+      Log('IW: WARNING Steam checkbox creation failed; continuing without Steam option.');
+    end;
+  end
+  else
   begin
-    EpicCheckbox := TCheckBox.Create(WizardForm);
-    EpicCheckbox.Parent := MyPage.Surface;
-    EpicCheckbox.Top := CurrentTop;
-    EpicCheckbox.Left := ScaleX(0);
-    EpicCheckbox.Width := ScaleX(300);
-    EpicCheckbox.Height := ScaleY(20);
-    EpicCheckbox.Caption := 'Install for Epic Games';
-    if not IsSteamInstalled then
-      EpicCheckbox.Checked := True;
-    CurrentTop := CurrentTop + ScaleY(24);
+    Log('IW: steam NOT installed/detected; leaving Manual default');
+    if Assigned(ManualCheckbox) then
+      ManualCheckbox.Checked := True;
   end;
 
-  // Manual path checkbox
-  ManualCheckbox := TCheckBox.Create(WizardForm);
-  ManualCheckbox.Parent := MyPage.Surface;
-  ManualCheckbox.Top := CurrentTop;
-  ManualCheckbox.Left := ScaleX(0);
-  ManualCheckbox.Width := ScaleX(300);
-  ManualCheckbox.Height := ScaleY(20);
-  ManualCheckbox.Caption := 'Install to custom path:';
-  ManualCheckbox.OnClick := @ManualCheckboxClick;
-  ManualCheckbox.Checked := (not IsSteamInstalled) and (not IsEpicInstalled);
+  // Epic stays hidden on Win10; nothing to do here
 
-  CurrentTop := CurrentTop + ScaleY(24);
-
-  // Manual path edit
-  ManualPathEdit := TEdit.Create(WizardForm);
-  ManualPathEdit.Parent := MyPage.Surface;
-  ManualPathEdit.Top := CurrentTop;
-  ManualPathEdit.Left := ScaleX(0);
-  ManualPathEdit.Width := ScaleX(300);
-  ManualPathEdit.Height := ScaleX(25);
-  ManualPathEdit.Text := 'C:\Games\Control';
-
-  // Browse button
-  ManualBrowseButton := TButton.Create(WizardForm);
-  ManualBrowseButton.Parent := MyPage.Surface;
-  ManualBrowseButton.Top := CurrentTop;
-  ManualBrowseButton.Left := ManualPathEdit.Left + ManualPathEdit.Width + ScaleX(8);
-  ManualBrowseButton.Width := ScaleX(75);
-  ManualBrowseButton.Height := ScaleX(25);
-  ManualBrowseButton.Caption := 'Browse...';
-  ManualBrowseButton.OnClick := @BrowseManualPath;
-
-  // Initialize enabled/disabled state
   ManualCheckboxClick(nil);
-
-  begin
-    // Thank-you message (non-clickable)
-    ThankYouLabel := TNewStaticText.Create(WizardForm);
-    ThankYouLabel.Parent := WizardForm.FinishedPage;
-    ThankYouLabel.Caption := #13#10 + 'Thank you for installing the Control — DualSensitive Mod!' + #13#10 +
-                             'For news and updates, please visit:';
-    ThankYouLabel.Top := WizardForm.FinishedLabel.Top + WizardForm.FinishedLabel.Height + ScaleY(16);
-    ThankYouLabel.Left := WizardForm.FinishedLabel.Left;
-    ThankYouLabel.AutoSize := True;
-
-    // Hyperlink (clickable)
-    WebsiteLabel := TNewStaticText.Create(WizardForm);
-    WebsiteLabel.Parent := WizardForm.FinishedPage;
-    WebsiteLabel.Caption := 'https://www.dualsensitive.com/';
-    WebsiteLabel.Font.Color := clBlue;
-    WebsiteLabel.Font.Style := WebsiteLabel.Font.Style + [fsUnderline];
-    WebsiteLabel.Cursor := crHand;
-    WebsiteLabel.OnClick := @OnVisitWebsiteClick;
-    WebsiteLabel.Top := ThankYouLabel.Top + ThankYouLabel.Height + ScaleY(8);
-    WebsiteLabel.Left := ThankYouLabel.Left;
-    WebsiteLabel.AutoSize := True;
-  end;
+  Log('IW: checkboxes wired');
 end;
+
