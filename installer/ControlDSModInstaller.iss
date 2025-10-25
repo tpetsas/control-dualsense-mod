@@ -378,6 +378,7 @@ begin
   Result := NormalizeLibraryPath(val);
 end;
 
+
 function CheckRoot(const steamappsRoot: string; var OutDir: string): Boolean;
 var
   commonDir, gameDir: string;
@@ -390,7 +391,7 @@ begin
   if DirExists(gameDir) then
   begin
     OutDir := gameDir;
-    Result := True
+    Result := True;
     Exit;
   end;
 
@@ -398,7 +399,7 @@ begin
   if DirExists(gameDir) then
   begin
     OutDir := gameDir;
-    Result := True
+    Result := True;
     Exit;
   end;
 
@@ -409,11 +410,17 @@ begin
       OutDir := AddBackslash(commonDir) + 'Control'
     else
       OutDir := commonDir;  // let user pick if subfolder varies
-    Result := True
+    Result := True;
     Exit;
   end;
 end;
 
+// formerly nested: now top-level
+function ProbeSteamRoot(const steamappsRoot: string; var OutDir: string): Boolean;
+begin
+  Log('Steam: probing steamapps root ' + steamappsRoot);
+  Result := DirExists(steamappsRoot) and CheckRoot(steamappsRoot, OutDir);
+end;
 
 function TryFindControlByHeuristic(var OutDir: string): Boolean;
 var
@@ -423,27 +430,27 @@ begin
   Result := False;
   OutDir := '';
 
-  // Scan typical Steam layouts on fixed letters (C..Z)
+  // First, check Program Files installs (very common on Win 11)
+  root := ExpandConstant('{pf32}') + '\Steam\steamapps';
+  if ProbeSteamRoot(root, OutDir) then begin Result := True; Exit; end;
+
+  root := ExpandConstant('{pf}') + '\Steam\steamapps';
+  if ProbeSteamRoot(root, OutDir) then begin Result := True; Exit; end;
+
+  // Then scan typical library roots on other drives
   for d := Ord('C') to Ord('Z') do
   begin
-    // ...\Steam\steamapps
     root := Chr(d) + ':\Steam\steamapps';
-    if DirExists(root) and CheckRoot(root, OutDir) then
-    begin
-      Result := True;
-      Exit;
-    end;
+    if ProbeSteamRoot(root, OutDir) then begin Result := True; Exit; end;
 
-    // ...\SteamLibrary\steamapps
     root := Chr(d) + ':\SteamLibrary\steamapps';
-    if DirExists(root) and CheckRoot(root, OutDir) then
-    begin
-      Result := True;
-      Exit;
-    end;
+    if ProbeSteamRoot(root, OutDir) then begin Result := True; Exit; end;
+
+    // some users keep a Games\Steam structure
+    root := Chr(d) + ':\Games\Steam\steamapps';
+    if ProbeSteamRoot(root, OutDir) then begin Result := True; Exit; end;
   end;
 end;
-
 
 function FileExistsInSteam(): Boolean;
 var
@@ -562,17 +569,21 @@ begin
     Log('Steam: EXCEPTION while parsing VDF; falling back to drive scan.');
   end;
 
-  // Final fallback: scan drives for Steam libraries
-  if (not Result) then
+  // Final fallback: scan drives for Steam libraries (always runs if not found)
+  if not Result then
   begin
+    Log('Steam: starting drive-scan fallback.');
     if TryFindControlByHeuristic(SteamInstallPath) then
     begin
       Result := True;
       Log('Steam: heuristic found Control at ' + SteamInstallPath);
+    end
+    else
+    begin
+      Log('Steam: heuristic did not find Control.');
     end;
   end;
 end;
-
 
 function NextButtonClick(CurPageID: Integer): Boolean;
 var
@@ -949,15 +960,53 @@ begin
     except
       Log('IW: WARNING Steam checkbox creation failed; continuing without Steam option.');
     end;
-  end
-  else
+  end;
+
+  // --- Epic (create checkbox if EpicInstallPath was found) ---
+  if IsEpicInstalled and (EpicInstallPath <> '') then
+  begin
+    try
+      // stack Epic below whatever was created last
+      if Assigned(SteamCheckbox) then
+        CurrentTop := SteamCheckbox.Top + SteamCheckbox.Height + ScaleY(8)
+      else if Assigned(ManualBrowseButton) then
+        CurrentTop := ManualBrowseButton.Top + ManualBrowseButton.Height + ScaleY(8)
+      else if Assigned(ManualCheckbox) then
+        CurrentTop := ManualCheckbox.Top + ScaleY(28)
+      else
+        CurrentTop := InfoLabel4.Top + ScaleY(24);
+
+      Log('IW: creating Epic checkbox (path=' + EpicInstallPath + ')');
+      EpicCheckbox := TCheckBox.Create(WizardForm);
+      EpicCheckbox.Parent := MyPage.Surface;
+      EpicCheckbox.Top := CurrentTop;
+      EpicCheckbox.Left := ScaleX(0);
+      EpicCheckbox.Width := ScaleX(300);
+      EpicCheckbox.Height := ScaleY(20);
+      EpicCheckbox.Caption := 'Install for Epic';
+      // Default: if Steam is present, leave Epic unchecked; otherwise pre-check Epic
+      EpicCheckbox.Checked := not IsSteamInstalled;
+
+      // If Epic is preselected, uncheck Manual so only one is on by default
+      if EpicCheckbox.Checked and Assigned(ManualCheckbox) then
+        ManualCheckbox.Checked := False;
+
+      // advance for anything else that might be added later
+      CurrentTop := EpicCheckbox.Top + EpicCheckbox.Height + ScaleY(8);
+
+      Log('IW: epic checkbox created');
+    except
+      Log('IW: WARNING Epic checkbox creation failed; continuing without Epic option.');
+    end;
+  end;
+
+  if not IsSteamInstalled and not IsEpicInstalled then
   begin
     Log('IW: steam NOT installed/detected; leaving Manual default');
     if Assigned(ManualCheckbox) then
       ManualCheckbox.Checked := True;
   end;
 
-  // Epic stays hidden on Win10; nothing to do here
 
   ManualCheckboxClick(nil);
   Log('IW: checkboxes wired');
