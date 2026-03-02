@@ -1,6 +1,6 @@
 # control-dualsense-mod
 
-[installer-link]: https://github.com/tpetsas/control-dualsense-mod/releases/download/v2.2.4/Control-DualSensitive-Mod_Setup.exe
+[installer-link]: https://github.com/tpetsas/control-dualsense-mod/releases/download/v2.2.3j/Control-DualSensitive-Mod_Setup.exe
 
 A mod for Control Ultimate Edition that adds DualSense adaptive trigger settings for all Service Weapon forms
 
@@ -50,7 +50,7 @@ This mod adds the following features:
 
 > **Note:** For the older version of the mod ([Control DualSense Mod v1.0.0]) that requires the [DSX] third party app to work, refer to these instructions: [![Control DualSense Mod Old](https://img.shields.io/badge/control--dualsense--mod-version%201.0.0-red)](https://github.com/tpetsas/control-dualsense-mod/blob/main/README.dsx.md)
 
-[Control DualSense Mod v2.2.0]: https://github.com/tpetsas/control-dualsense-mod/releases/tag/v2.2.0
+[Control DualSense Mod v2.3.0]: https://github.com/tpetsas/control-dualsense-mod/releases/tag/v2.3.0
 
 ### :exclamation: Windows SmartScreen or Antivirus Warning
 
@@ -63,7 +63,7 @@ This is a known limitation affecting many **open-source projects** that don't us
 - It **does not contain malware or spyware**.
 - Some antivirus programs may incorrectly flag unsigned software — these are known as **false positives**. After submission of the installer to VirusTotal, 5 out of 72 AV vendors flagged it (see [VT report]). All those vendors have been notified and my binary has been submitted to them for whitelising.
 
-**1. Download the **[Control-DualSensitive-Mod_Setup.exe][installer-link]** from the latest version ([Control DualSense Mod v2.2.0])**
+**1. Download the **[Control-DualSensitive-Mod_Setup.exe][installer-link]** from the latest version ([Control DualSense Mod v2.3.0])**
 
 
 
@@ -107,7 +107,7 @@ Now, you can experience the mod by just running the game.
 ### Manual Installation
 
 [proc-error-comment]: https://www.nexusmods.com/control/mods/108?tab=posts#comment-content-157259677
-[binaries-link]: https://github.com/tpetsas/control-dualsense-mod/releases/download/v2.2.0/Control-DualSensitive-Mod_Binaries.zip
+[binaries-link]: https://github.com/tpetsas/control-dualsense-mod/releases/download/v2.3.0/Control-DualSensitive-Mod_Binaries.zip
 
 Someone got this error using the installer: `Error Runtime error (at 33:71): Could not call proc.` ([see comment][proc-error-comment]). While, I don't have a way to replicate it unfrortunately so I can solve it, here are the steps to install the mod manually if you experience any similar issues with the installer:
 
