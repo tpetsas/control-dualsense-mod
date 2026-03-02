@@ -14,9 +14,9 @@
 AppId={#AppId}
 AppName={#ModName}
 AppVersion=2.3
-VersionInfoVersion=2.3.0.0
-VersionInfoTextVersion=2.3.0.0
-VersionInfoProductVersion=2.3.0.0
+VersionInfoVersion=2.3.1.0
+VersionInfoTextVersion=2.3.1.0
+VersionInfoProductVersion=2.3.1.0
 DefaultDirName={autopf}\DualSensitive\{#ModName}
 DefaultGroupName={#ModName}
 OutputDir=.
