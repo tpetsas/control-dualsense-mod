@@ -1,6 +1,6 @@
 # control-dualsense-mod
 
-[installer-link]: https://github.com/tpetsas/control-dualsense-mod/releases/download/v2.2.3j/Control-DualSensitive-Mod_Setup.exe
+[installer-link]: https://github.com/tpetsas/control-dualsense-mod/releases/download/v2.2.3/Control-DualSensitive-Mod_Setup.exe
 
 A mod for Control Ultimate Edition that adds DualSense adaptive trigger settings for all Service Weapon forms
 
