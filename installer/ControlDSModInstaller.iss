@@ -13,10 +13,10 @@
 [Setup]
 AppId={#AppId}
 AppName={#ModName}
-AppVersion=2.2
-VersionInfoVersion=2.2.4.0
-VersionInfoTextVersion=2.2.4.0
-VersionInfoProductVersion=2.2.4.0
+AppVersion=2.3
+VersionInfoVersion=2.3.0.0
+VersionInfoTextVersion=2.3.0.0
+VersionInfoProductVersion=2.3.0.0
 DefaultDirName={autopf}\DualSensitive\{#ModName}
 DefaultGroupName={#ModName}
 OutputDir=.
