@@ -183,70 +183,79 @@ std::vector<std::string> g_WeaponListINI = {
 
 std::map<std::string, Triggers> g_TriggerSettings ;
 
+TriggerSetting* getConfTriggerOrDefault(std::string weaponTrigger, TriggerSetting* defValue) {
+    if (g_config.weaponMap.contains(weaponTrigger))
+        return new TriggerSetting(
+            static_cast<TriggerMode>(g_config.weaponMap[weaponTrigger][0]), 
+            std::vector<uint8_t> (g_config.weaponMap[weaponTrigger].begin() + 1, g_config.weaponMap[weaponTrigger].begin() + 9)
+        );
+    return defValue;
+}
+
 void InitTriggerSettings() {
     g_TriggerSettings =
     {
         {
             "WEAPON_PISTOL_DEFAULT", // Grip
             {
-                .L2 = new TriggerSetting(TriggerProfile::Choppy, {}),
-                .R2 = new TriggerSetting(TriggerProfile::Soft, {})
+                .L2 = getConfTriggerOrDefault("PISTOL_L2", new TriggerSetting(TriggerProfile::Choppy, {})),
+                .R2 = getConfTriggerOrDefault("PISTOL_R2", new TriggerSetting(TriggerProfile::Soft, {}))
             }
         },
         {
             "WEAPON_SHOTGUN_SINGLESHOT", // Shatter
             {
-                .L2 = new TriggerSetting (
+                .L2 = getConfTriggerOrDefault("SHOTGUN_L2", new TriggerSetting (
                         TriggerMode::Rigid_A,
                         {60, 71, 56, 128, 195, 210, 255}
-                ),
-                .R2 = new TriggerSetting (
+                )),
+                .R2 = getConfTriggerOrDefault("SHOTGUN_R2", new TriggerSetting (
                         TriggerProfile::SlopeFeedback,
                         {0, 5, 1, 8}
-                )
+                ))
             }
         },
         {
             "WEAPON_SMG_STANDARD", // Spin
             {
-                .L2 = new TriggerSetting (
+                .L2 = getConfTriggerOrDefault("SMG_L2", new TriggerSetting (
                         TriggerMode::Rigid_A,
                         {71, 96, 128, 128, 128, 128, 128}
-                ),
-                .R2 = new TriggerSetting(
+                )),
+                .R2 = getConfTriggerOrDefault("SMG_R2", new TriggerSetting(
                         TriggerProfile::Vibration,
                         {3, 4, 14}
-                )
+                ))
             }
         },
         {
             "WEAPON_RAILGUN_STANDARD", // Pierce
             {
-                .L2 = new TriggerSetting (
+                .L2 = getConfTriggerOrDefault("RAILGUN_L2", new TriggerSetting (
                         TriggerProfile::Machine,
                         {1, 8, 3, 3, 184, 0}
-                ),
-                .R2 = new TriggerSetting (
+                )),
+                .R2 = getConfTriggerOrDefault("RAILGUN_R2", new TriggerSetting (
                         TriggerMode::Pulse_B,
                         {238, 215, 66, 120, 43, 160, 215}
-                )
+                ))
             }
         },
         {
             "WEAPON_ROCKETLAUNCHER_TRIPLESHOT", // Charge
             {
-                .L2 = new TriggerSetting(TriggerMode::Rigid, {}),
-                .R2 = new TriggerSetting (
+                .L2 = getConfTriggerOrDefault("ROCKETLUNCHER_L2", new TriggerSetting(TriggerMode::Rigid, {})),
+                .R2 = getConfTriggerOrDefault("ROCKETLUNCHER_R2", new TriggerSetting (
                         TriggerMode::Rigid_A,
                         {209, 42, 232, 192, 232, 209, 232}
-                )
+                ))
             }
         },
         {
             "WEAPON_DLC2_STICKYLAUNCHER", // Surge
             {
-                .L2 = new TriggerSetting(TriggerProfile::Feedback, {3, 3}),
-                .R2 = new TriggerSetting(TriggerProfile::VeryHard, {})
+                .L2 = getConfTriggerOrDefault("STICKYLAUNCHER_L2", new TriggerSetting(TriggerProfile::Feedback, {3, 3})),
+                .R2 = getConfTriggerOrDefault("STICKYLAUNCHER_R2", new TriggerSetting(TriggerProfile::VeryHard, {}))
             }
         }
     };
